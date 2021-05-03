@@ -11,6 +11,10 @@ confluent-kafka = "^1.6.1"
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.12.1"
 pytest = "^6.2.3"
+pytest-cov = "^2.11.1"
+pytest-socket = "^0.4.0"
+pytest-xdist = "^2.2.1"
+taskipy = "^1.7.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -25,6 +29,10 @@ line_length = 88
 multi_line_output = 3
 
 [tool.pylint.master]
+bad-functions = ["print"]
+jobs = 1
+max-complexity = 10
+suggestion-mode = "yes"
 
 [tool.pylint.format]
 max-line-length = 88
@@ -32,7 +40,61 @@ max-module-lines = 1000
 single-line-class-stmt = "no"
 single-line-if-stmt = "no"
 
+[tool.pylint.design]
+max-args = 5
+max-attributes = 7
+max-bool-expr = 5
+max-branches = 15
+max-locals = 15
+max-parents = 7
+max-public-methods = 20
+max-returns = 6
+max-statements = 60
+min-public-methods = 1
+
+[tool.pylint.refactoring]
+max-nested-blocks = 5
+
 [tool.pylint.messages_control]
 disable = [
     "logging-fstring-interpolation",
 ]
+
+[tool.pylint.reports]
+output-format = "colorized"
+score = "yes"
+
+[tool.pytest.ini_options]
+addopts = "--disable-socket --allow-unix-socket"
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = [
+    "*/tests/*",
+    "./docs/*",
+    ]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    ]
+ignore_errors = true
+precision = 2
+skip_empty = true
+skip_covered = true
+show_missing = false
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+
+# pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail
+# coverage report --rcfile=pyproject.toml
