@@ -95,6 +95,8 @@ directory = "htmlcov"
 [tool.coverage.xml]
 output = "coverage.xml"
 
-
-# pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail
-# coverage report --rcfile=pyproject.toml
+[tool.taskipy.tasks]
+test = "pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail"
+coverage = "coverage report --rcfile=pyproject.toml"
+coverage_report = "coverage report --rcfile=pyproject.toml"
+coverage_html = "coverage html --rcfile=pyproject.toml"

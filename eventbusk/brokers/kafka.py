@@ -30,28 +30,39 @@ class Broker:
 
     @classmethod
     def from_uri(cls, uri: str) -> Broker:
-        invalid_format = ValueError(
-            "Broker URI should be of the format 'kafka[s]://user:pass@host:port'"
-        )
-
         if uri.startswith("kafka://"):
             ssl = False
         elif uri.startswith("kafkas://"):
             ssl = True
         else:
-            raise invalid_format
+            raise ValueError(
+                "Broker URI should be of the format 'kafka[s]://[user:pass]@host:port'"
+            )
 
         uri = uri.replace("kafka://", "").replace("kafkas://", "")
         parts = uri.split("@")
         if len(parts) == 1:
-            username = None
-            password = None
+            username = ""
+            password = ""
             host, port = parts[0].split(":")
         elif len(parts) == 2:
             username, password = parts[0].split(":")
             host, port = parts[1].split(":")
+
+            if not (username and password):
+                raise ValueError(
+                    "Broker URI should contain either both username and password or use the format"
+                    "'kafka[s]://host:port'"
+                )
         else:
-            raise invalid_format
+            raise ValueError(
+                "Broker URI should be of the format 'kafka[s]://[user:pass]@host:port'"
+            )
+
+        if not host or not port:
+            raise ValueError(
+                "Broker URI should contain both host and port 'kafka[s]://[user:pass]host:port'"
+            )
 
         return cls(username=username, password=password, host=host, port=port, ssl=ssl)
 
