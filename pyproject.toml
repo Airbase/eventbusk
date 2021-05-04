@@ -66,7 +66,7 @@ output-format = "colorized"
 score = "yes"
 
 [tool.pytest.ini_options]
-addopts = "--disable-socket --allow-unix-socket"
+addopts = "--disable-socket"
 
 [tool.coverage.run]
 branch = true

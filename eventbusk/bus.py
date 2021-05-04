@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from functools import wraps
 from typing import Callable, Type, Union
 from urllib.parse import urlparse
@@ -108,12 +108,11 @@ class EventBus:
                     )
             on_delivery = default_on_delivery
 
-        data = json.dumps(event.__dict__).encode("utf-8")
+        data = json.dumps(asdict(event)).encode("utf-8")
         try:
-            print(topic, data)
-            #self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
+            self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
             # TODO: Do we need to flush?
-            #self.producer.flush()
+            # self.producer.flush()
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(
