@@ -29,4 +29,4 @@ def producer_factory(broker: str):
     return KafkaProducer(broker)
 
 
-Producer = consumer_factory
+Producer = producer_factory

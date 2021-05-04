@@ -41,7 +41,6 @@ class EventBus:
     -----
     bus = EventBus(broker="kafka://user:pass@localhost:9092")
 
-    # Produce an event
     @dataclass
     class MyEvent(Event):
         foo: int
@@ -49,8 +48,9 @@ class EventBus:
 
     bus.register_event("mytopic", MyEvent)
 
+    # Produce an event
     event = MyEvent(foo=1, bar="baz")
-    event.produce()
+    bus.send(event)
 
     # Consume an event
     @bus.agent(event_class=MyEvent)
@@ -89,15 +89,16 @@ class EventBus:
                 f"Event with the same topic has already been registered. [{topic=}]"
             )
 
-        self._topic_to_event[topic] = self._to_fqn(event_class)
-        self._event_to_topic[event_class] = topic
+        # Create a bidict for 'topic' -> 'mymodule.MyEvent'
+        class_fqn = self._to_fqn(event_class)
+        self._topic_to_event[topic] = class_fqn
+        self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: Callable, fail_silently=False):
+    def send(self, event: Event, on_delivery: Callable=None, fail_silently=False):
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
         if not on_delivery:
-
             def default_on_delivery(error, event):
                 if error:
                     logger.error(f"Event: {event.value()} delivery failed: {error}")
@@ -105,14 +106,14 @@ class EventBus:
                     logger.info(
                         f"Event: {event.value()} delivered to topic:{event.topic()} partition:{event.partition()}"
                     )
-
             on_delivery = default_on_delivery
 
         data = json.dumps(event.__dict__).encode("utf-8")
         try:
-            self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
+            print(topic, data)
+            #self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
             # TODO: Do we need to flush?
-            producer.flush()
+            #self.producer.flush()
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(

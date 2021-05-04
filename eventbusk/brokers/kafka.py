@@ -16,65 +16,67 @@ class Broker:
     """
     Broker URI
 
+    Basic url is of the format: kafka://localhost:9092
+    SASL support is enabled with the format: kafkas://user:pass@localhost:9092
+
     Usage
     ------
     >>> broker = Broker("kafka://user:pass@localhost:9092")
     >>> broker.username
+
     """
 
     username: str
     password: str
     host: str
     port: int
-    ssl: bool
+    sasl: bool
 
     @classmethod
     def from_uri(cls, uri: str) -> Broker:
+        invalid_format = ValueError(
+            "Broker URI(without SASL) should be of the format 'kafka://host:port' "
+            "or 'kafkas://user:pass@host:port'"
+        )
+
         if uri.startswith("kafka://"):
-            ssl = False
+            sasl = False
         elif uri.startswith("kafkas://"):
-            ssl = True
+            sasl = True
         else:
-            raise ValueError(
-                "Broker URI should be of the format 'kafka[s]://[user:pass]@host:port'"
-            )
+            raise invalid_format
 
         uri = uri.replace("kafka://", "").replace("kafkas://", "")
         parts = uri.split("@")
-        if len(parts) == 1:
-            username = ""
-            password = ""
+
+        if not sasl:
+            if len(parts) > 1:
+                raise invalid_format
+            username, password = ("", "")
             host, port = parts[0].split(":")
-        elif len(parts) == 2:
+        else:
+            if len(parts) != 2:
+                raise invalid_format
+
             username, password = parts[0].split(":")
             host, port = parts[1].split(":")
-
             if not (username and password):
-                raise ValueError(
-                    "Broker URI should contain either both username and password or use the format"
-                    "'kafka[s]://host:port'"
-                )
-        else:
-            raise ValueError(
-                "Broker URI should be of the format 'kafka[s]://[user:pass]@host:port'"
-            )
+                raise invalid_format
 
-        if not host or not port:
-            raise ValueError(
-                "Broker URI should contain both host and port 'kafka[s]://[user:pass]host:port'"
-            )
+        if not (host and port):
+            raise invalid_format
 
-        return cls(username=username, password=password, host=host, port=port, ssl=ssl)
+        return cls(username=username, password=password, host=host, port=port, sasl=sasl)
 
     def _build_props(self):
         props = {
             "bootstrap.servers": f"{self.host}:{self.port}",
-            "sasl.mechanisms": "PLAIN",
-            "security.protocol": "SASL_SSL" if self.ssl else "SASL_PLAINTEXT",
         }
-        if self.username and self.password:
+        if self.sasl:
             props.update(
                 {
+                    "sasl.mechanisms": "PLAIN",
+                    "security.protocol": "SASL_SSL",
                     "sasl.username": self.username,
                     "sasl.password": self.password,
                 }
@@ -144,7 +146,6 @@ class KafkaConsumer(ContextDecorator):
 def kafka_producer_factory(broker: str) -> Producer:
     broker = Broker.from_uri(broker)
     props = broker.producer_props
-    print(props)
     return Producer(props)
 
 
