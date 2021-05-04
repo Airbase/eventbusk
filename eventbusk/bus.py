@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import time
 import logging
 from dataclasses import dataclass, asdict
 from functools import wraps
-from typing import Callable, Type, Union
+from typing import Callable, Union
 from urllib.parse import urlparse
 
 from confluent_kafka import KafkaError
@@ -35,6 +36,10 @@ class AlreadyRegistered(EventBusError):
     pass
 
 
+class AgentError(EventBusError):
+    pass
+
+
 class EventBus:
     """
     Usage
@@ -53,7 +58,7 @@ class EventBus:
     bus.send(event)
 
     # Consume an event
-    @bus.agent(event_class=MyEvent)
+    @bus.agent(event_type=MyEvent)
     def process(event):
         ...
     """
@@ -69,16 +74,16 @@ class EventBus:
         # name of the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._agents = set()
+        self._agents: set[Callable] = set()
 
     @staticmethod
-    def _to_fqn(event_class: type[Event] | Callable) -> str:
+    def _to_fqn(event_type: Union[type[Event], Callable]) -> str:
         """
-        Returns fully qualified name of an event class or an agent, to identify them uniquely.
+        Returns 'fully qualified name' of an event class or an agent, to identify them uniquely.
         """
-        return f"{event_class.__module__}.{event_class.__qualname__}"
+        return f"{event_type.__module__}.{event_type.__qualname__}"
 
-    def register_event(self, topic: str, event_class: type[Event]):
+    def register_event(self, topic: str, event_type: type[Event]):
         """
         Register an event to a bus.
 
@@ -90,7 +95,7 @@ class EventBus:
             )
 
         # Create a bidict for 'topic' -> 'mymodule.MyEvent'
-        class_fqn = self._to_fqn(event_class)
+        class_fqn = self._to_fqn(event_type)
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
@@ -123,13 +128,13 @@ class EventBus:
                 raise exc
 
     def _register_agent(self, agent):
-        _agents.add(agent)
+        self._agents.add(agent)
 
     @property
     def agents(self) -> set[Callable]:
         return self._agents
 
-    def agent(self, event_class: type[Event], poll_timeout: int = 1):
+    def agent(self, event_type: type[Event], poll_timeout: int = 1):
         """
         Decorator to convert a function into an agent.
 
@@ -138,68 +143,58 @@ class EventBus:
 
         def _action_decorator(func):
             # TODO: Ensure this does not clash
-            consumer_group_name = self._to_fqn(func)
+            group = self._to_fqn(func)
 
             @wraps(func)
             def wrapper(*args, **kwargs):
+                agent_fqn = self._to_fqn(func)
                 event_fqn = self._to_fqn(event.__class__)
                 topic = self._event_to_topic[event_fqn]
+                log_context = dict(event=event_fqn, agent=agent_fqn, topic=topic, group=group)
 
-                with Consumer(
-                    broker=self.broker, topic=topic, group=consumer_group_name
-                ) as consumer:
+                with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
                     while True:
                         try:
-                            serialised_event = consumer.poll(poll_timeout)
+                            serialized_event = consumer.poll(poll_timeout)
 
                             # No message to consume.
-                            if serialised_event is None:
-                                logger.info(
-                                    f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event is None"
-                                )
+                            if serialized_event is None:
+                                time.sleep(1)
                                 continue
 
-                            # Error consuming.
-                            if serialised_event.error():
-                                logger.info(
-                                    f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event error {serialised_event.error()}"
+                            if serialized_event.error():
+                                logger.warning(
+                                    f"Error consuming event.",
+                                    extra={**log_context, **{"error": serialized_event.error()}},
                                 )
+                                time.sleep(1)
                                 continue
 
                             # Deserialise to the dataclass of the event
-                            deserialised_event = event_class(
-                                **json.loads(serialised_event.value().decode("utf-8"))
+                            event = event_type(
+                                **json.loads(serialized_event.value().decode("utf-8"))
                             )
 
                             try:
-                                logger.info(
-                                    f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event processing data={deserialised_event}"
-                                )
-                                func(event=deserialised_event)
-
-                                logger.info(
-                                    f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event successfully processed data={deserialised_event}"
-                                )
-                            except:
-                                # else do error handling
+                                func(event=event)
+                                success = True
+                            except Exception as exc:
                                 logger.exception(
-                                    f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event error data={deserialised_event}",
+                                    f"Error consuming event. ",
+                                    extra={**log_context, **{"data": serialized_event}},
                                     exc_info=True,
                                 )
+                                success = False
 
-                            # update offset
-                            consumer.store_offsets(message=serialised_event)
-                            # TODO: This will acknowledge messages which couldn't be processed too
-                            # Add some retry mechanism in a later version.
+
+                            if success:
+                                consumer.store_offsets(message=serialised_event)
+                            else:
+                                time.sleep(1)
 
                         except KeyboardInterrupt:
-                            logger.info(f"Closing agent agent={func.__name__}")
+                            logger.info(f"Closing agent.", extra=log_context)
                             break
-                        except:
-                            logger.exception(
-                                f"event={event_class.__name__} agent={func.__name__} topic={topic} consumer_group={consumer_group} event error",
-                                exc_info=True,
-                            )
 
             self._register_agent(wrapper)
 

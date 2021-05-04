@@ -53,13 +53,15 @@ class Broker:
             if len(parts) > 1:
                 raise invalid_format
             username, password = ("", "")
-            host, port = parts[0].split(":")
+            domain_parts = parts[0].split(":")
+            host, port = (domain_parts[0]), int(domain_parts[1])
         else:
             if len(parts) != 2:
                 raise invalid_format
 
             username, password = parts[0].split(":")
-            host, port = parts[1].split(":")
+            domain_parts = parts[1].split(":")
+            host, port = (domain_parts[0]), int(domain_parts[1])
             if not (username and password):
                 raise invalid_format
 
@@ -68,7 +70,8 @@ class Broker:
 
         return cls(username=username, password=password, host=host, port=port, sasl=sasl)
 
-    def _build_props(self):
+    @property
+    def default_props(self):
         props = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
@@ -82,23 +85,6 @@ class Broker:
                 }
             )
         return props.copy()
-
-    @property
-    def consumer_props(self):
-        props = self._build_props()
-        props.update(
-            {
-                "group.id": self.group,
-                "auto.offset.reset": "earliest",
-                "enable.auto.offset.store": False,  # TODO: autocommit?
-            }
-        )
-        return props
-
-    @property
-    def producer_props(self):
-        # TODO: create topics off
-        return self._build_props()
 
 
 class KafkaConsumer(ContextDecorator):
@@ -129,7 +115,14 @@ class KafkaConsumer(ContextDecorator):
         )
 
     def __enter__(self):
-        props = self.broker.consumer_props
+        props = self.broker.default_props
+        props = props.update(
+            {
+                "group.id": self.group,
+                "auto.offset.reset": "earliest",
+                "enable.auto.offset.store": False,  # TODO: autocommit?
+            }
+        )
         self.consumer = Consumer(props)
         self.consumer.subscribe([self.topic])
         return self.consumer
@@ -139,13 +132,13 @@ class KafkaConsumer(ContextDecorator):
 
         if type and value and traceback:
             logger.exception(
-                f"{self.__class__.__name__} error. [{self}]", exc_info=True
+                f"KafkaConsumer error. [{self}]", exc_info=True
             )
 
 
 def kafka_producer_factory(broker: str) -> Producer:
-    broker = Broker.from_uri(broker)
-    props = broker.producer_props
+    broker_obj = Broker.from_uri(broker)
+    props = broker_obj.default_props
     return Producer(props)
 
 

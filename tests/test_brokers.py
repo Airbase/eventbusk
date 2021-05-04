@@ -16,7 +16,7 @@ def test_consumer_factory(broker, topic, group):
         assert consumer.broker.password == "password"
 
     assert consumer.broker.host == "localhost"
-    assert consumer.broker.port == "9092"
+    assert consumer.broker.port == 9092
     assert consumer.topic == topic
     assert consumer.group == group
     if "kafkas" in broker:
@@ -24,7 +24,7 @@ def test_consumer_factory(broker, topic, group):
     else:
         assert not consumer.broker.sasl
 
-    # assert consumer.broker.consumer_props  # TODO
+    assert consumer.broker.default_props
 
 
 @pytest.mark.parametrize("broker,topic,group", [
