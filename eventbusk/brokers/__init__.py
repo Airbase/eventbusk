@@ -4,12 +4,10 @@ Generic interface for brokers
 
 from .kafka import KafkaConsumer, KafkaProducer
 
-
 __all__ = [
     "Consumer",
     "Producer",
 ]
-
 
 
 def consumer_factory(broker: str, topic: str, group: str):
@@ -18,6 +16,7 @@ def consumer_factory(broker: str, topic: str, group: str):
     """
     # TODO: Only kafka supported for now.
     return KafkaConsumer(broker=broker, topic=topic, group=group)
+
 
 Consumer = consumer_factory
 

@@ -68,7 +68,9 @@ class Broker:
         if not (host and port):
             raise invalid_format
 
-        return cls(username=username, password=password, host=host, port=port, sasl=sasl)
+        return cls(
+            username=username, password=password, host=host, port=port, sasl=sasl
+        )
 
     @property
     def default_props(self):
@@ -119,7 +121,7 @@ class KafkaConsumer(ContextDecorator):
         props = props.update(
             {
                 "group.id": self.group,
-                "auto.offset.reset": "earliest",
+                "auto.offset.reset": "earliest",  # TODO: This will change per agent
                 "enable.auto.offset.store": False,  # TODO: autocommit?
             }
         )
@@ -131,9 +133,7 @@ class KafkaConsumer(ContextDecorator):
         self.consumer.close()
 
         if type and value and traceback:
-            logger.exception(
-                f"KafkaConsumer error. [{self}]", exc_info=True
-            )
+            logger.exception(f"KafkaConsumer error. [{self}]", exc_info=True)
 
 
 def kafka_producer_factory(broker: str) -> Producer:

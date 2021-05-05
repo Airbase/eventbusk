@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-import time
 import logging
-from dataclasses import dataclass, asdict
+import time
+from dataclasses import asdict, dataclass
 from functools import wraps
 from typing import Callable, Union
 from urllib.parse import urlparse
@@ -99,11 +99,12 @@ class EventBus:
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: Callable=None, fail_silently=False):
+    def send(self, event: Event, on_delivery: Callable = None, fail_silently=False):
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
         if not on_delivery:
+
             def default_on_delivery(error, event):
                 if error:
                     logger.error(f"Event: {event.value()} delivery failed: {error}")
@@ -111,6 +112,7 @@ class EventBus:
                     logger.info(
                         f"Event: {event.value()} delivered to topic:{event.topic()} partition:{event.partition()}"
                     )
+
             on_delivery = default_on_delivery
 
         data = json.dumps(asdict(event)).encode("utf-8")
@@ -150,7 +152,9 @@ class EventBus:
                 agent_fqn = self._to_fqn(func)
                 event_fqn = self._to_fqn(event.__class__)
                 topic = self._event_to_topic[event_fqn]
-                log_context = dict(event=event_fqn, agent=agent_fqn, topic=topic, group=group)
+                log_context = dict(
+                    event=event_fqn, agent=agent_fqn, topic=topic, group=group
+                )
 
                 with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
                     while True:
@@ -165,7 +169,10 @@ class EventBus:
                             if serialized_event.error():
                                 logger.warning(
                                     f"Error consuming event.",
-                                    extra={**log_context, **{"error": serialized_event.error()}},
+                                    extra={
+                                        **log_context,
+                                        **{"error": serialized_event.error()},
+                                    },
                                 )
                                 time.sleep(1)
                                 continue
@@ -185,7 +192,6 @@ class EventBus:
                                     exc_info=True,
                                 )
                                 success = False
-
 
                             if success:
                                 consumer.store_offsets(message=serialised_event)

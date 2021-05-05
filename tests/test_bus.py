@@ -1,16 +1,18 @@
+from dataclasses import dataclass
+
 import pytest
 
-from dataclasses import dataclass
-from eventbusk import EventBus, Event
+from eventbusk import Event, EventBus
+
 
 @dataclass
 class Foo(Event):
     first: int
 
+
 @dataclass
 class Bar(Event):
     second: int
-
 
 
 def test_bus_send(mocker):
@@ -40,11 +42,16 @@ def test_bus_send(mocker):
 
     # Then check the underlying producer was correctly called with the right event json
     assert bus is not None
-    producer.produce.assert_has_calls([
-        mocker.call(topic="first_topic", value=b'{"first": 1}', on_delivery=on_delivery),
-        mocker.call(topic="second_topic", value=b'{"second": 1}', on_delivery=on_delivery)
-    ])
-
+    producer.produce.assert_has_calls(
+        [
+            mocker.call(
+                topic="first_topic", value=b'{"first": 1}', on_delivery=on_delivery
+            ),
+            mocker.call(
+                topic="second_topic", value=b'{"second": 1}', on_delivery=on_delivery
+            ),
+        ]
+    )
 
 
 def test_bus_agent(mocker):

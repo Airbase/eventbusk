@@ -1,16 +1,23 @@
-import concurrent.futures
-import logging
+"""
+CLI Interface
+"""
 
-import django
-
-django.setup()
-
-from .events import get_agents
-
-logger = logging.getLogger(__name__)
+import click
 
 
-if __name__ == "__main__":
+@click.group()
+def cli():
+    """Main entry point."""
+
+
+@cli.command()
+@click.option('--app', help="Path to EventBus instance. eg. 'myapp:bus'")
+def worker(app):
+    """
+    Start consumer workers
+    """
+    click.echo(app)
+    #
     agents = get_agents()
 
     num_workers = len(agents)
@@ -23,3 +30,7 @@ if __name__ == "__main__":
                 future.result()
     else:
         logger.error("No registered agents to run.")
+
+
+if __name__ == '__main__':
+    cli()
