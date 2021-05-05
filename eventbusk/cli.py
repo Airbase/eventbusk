@@ -3,15 +3,41 @@ Command Line Interface
 """
 from __future__ import annotations
 
-import click
-import importlib
+from contextlib import contextmanager, suppress
 from types import ModuleType
+from typing import Generator
+import click
+import imp
+import importlib
+import logging
+import os
+import sys
 
-from eventbusk import EventBus
+from .bus import EventBus
+
+# TODO: remove
+from icecream import install
+install()
+
+logger = logging.getLogger(__name__)
 
 
+@contextmanager
+def cwd_in_path() -> Generator:
+    """Context adding the current working directory to sys.path."""
+    cwd = os.getcwd()
+    if cwd in sys.path:
+        yield
+    else:
+        sys.path.insert(0, cwd)
+        try:
+            yield cwd
+        finally:
+            with suppress(ValueError):
+                sys.path.remove(cwd)
 
-def find_app(app: str, attr_name: str="app") -> EventBus:
+
+def find_app(app: str, attr_name: str="app"):#  -> EventBus:
     """
     Import an EventBus instance based on a path name.
 
@@ -30,8 +56,10 @@ def find_app(app: str, attr_name: str="app") -> EventBus:
     else:
         module_name = app
 
-    module = importlib.import_module(module_name)
-    if not isinstance(module, types.ModuleType):
+    with cwd_in_path():
+        module = importlib.import_module(module_name, package=None)
+
+    if not isinstance(module, ModuleType):
         raise AttributeError(f"Module f{module_name} not found or cannot be imported")
 
     # Find bus instance within the module
@@ -48,13 +76,12 @@ def cli():
 
 
 @cli.command()
-@click.option('--app', help="Path to EventBus instance. eg. 'mymodule:app'")
+@click.option("--app", "-A", help="Path to EventBus instance. eg. 'mymodule:app'")
 def worker(app):
     """
     Start consumer workers
     """
     bus = find_app(app)
-    click.echo(bus)
 
     agents = bus.agents
     num_workers = len(agents)
@@ -67,7 +94,3 @@ def worker(app):
                 future.result()
     else:
         logger.error("No registered agents to run.")
-
-
-if __name__ == '__main__':
-    cli()

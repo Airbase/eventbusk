@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from confluent_kafka import KafkaError
 
 from .brokers import Consumer, Producer
+from .exceptions import AlreadyRegistered, AgentError
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +27,6 @@ class Event:
         foo: int
         bar: str
     """
-
-
-class EventBusError(Exception):
-    pass
-
-
-class AlreadyRegistered(EventBusError):
-    pass
-
-
-class AgentError(EventBusError):
-    pass
 
 
 class EventBus:
