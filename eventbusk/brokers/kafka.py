@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 from contextlib import ContextDecorator
 from dataclasses import dataclass
 
 from confluent_kafka import Consumer, Producer
+
+logger = logging.getLogger(__name__)
+
 
 __all__ = [
     "KafkaConsumer",
@@ -118,7 +122,7 @@ class KafkaConsumer(ContextDecorator):
 
     def __enter__(self):
         props = self.broker.default_props
-        props = props.update(
+        props.update(
             {
                 "group.id": self.group,
                 "auto.offset.reset": "earliest",  # TODO: This will change per agent

@@ -6,8 +6,8 @@ authors = ["Airbase Inc <developers@airbase.io>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-confluent-kafka = "^1.6.1"
 click = "^7.1.2"
+confluent-kafka = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.12.1"

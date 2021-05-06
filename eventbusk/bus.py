@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
 import time
@@ -11,7 +12,7 @@ from urllib.parse import urlparse
 from confluent_kafka import KafkaError
 
 from .brokers import Consumer, Producer
-from .exceptions import AlreadyRegistered, AgentError
+from .exceptions import AgentError, AlreadyRegistered, UnknownEvent
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class EventBus:
 
     def __init__(self, broker: str):
         self.broker = broker
+        # TODO: Lazy create on first send
         self.producer = Producer(broker)
 
         # Registries
@@ -131,19 +133,23 @@ class EventBus:
 
         An agent is a simple function that consumes a specific event on the event bus.
         """
+        event_fqn = self._to_fqn(event_type)
+        if event_fqn not in self._event_to_topic.keys():
+            raise UnknownEvent(
+                f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
+            )
 
         def _action_decorator(func):
             # TODO: Ensure this does not clash
             group = self._to_fqn(func)
+            agent_fqn = self._to_fqn(func)
+            topic = self._event_to_topic[event_fqn]
+            log_context = dict(
+                event=event_fqn, agent=agent_fqn, topic=topic, group=group
+            )
 
             @wraps(func)
             def wrapper(*args, **kwargs):
-                agent_fqn = self._to_fqn(func)
-                event_fqn = self._to_fqn(event.__class__)
-                topic = self._event_to_topic[event_fqn]
-                log_context = dict(
-                    event=event_fqn, agent=agent_fqn, topic=topic, group=group
-                )
 
                 with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
                     while True:
@@ -152,6 +158,7 @@ class EventBus:
 
                             # No message to consume.
                             if serialized_event is None:
+                                logger.info("Sleeping1")
                                 time.sleep(1)
                                 continue
 
@@ -163,6 +170,7 @@ class EventBus:
                                         **{"error": serialized_event.error()},
                                     },
                                 )
+                                logger.info("Sleeping2")
                                 time.sleep(1)
                                 continue
 
@@ -183,8 +191,9 @@ class EventBus:
                                 success = False
 
                             if success:
-                                consumer.store_offsets(message=serialised_event)
+                                consumer.store_offsets(message=serialized_event)
                             else:
+                                logger.info("Sleeping3")
                                 time.sleep(1)
 
                         except KeyboardInterrupt:

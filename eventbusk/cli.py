@@ -3,22 +3,26 @@ Command Line Interface
 """
 from __future__ import annotations
 
-from contextlib import contextmanager, suppress
-from types import ModuleType
-from typing import Generator
-import click
+import concurrent.futures
 import imp
 import importlib
 import logging
 import os
 import sys
+from contextlib import contextmanager, suppress
+from types import ModuleType
+from typing import Generator
+
+import click
 
 from .bus import EventBus
 
-# TODO: remove
-from icecream import install
-install()
-
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    encoding="utf-8",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +41,7 @@ def cwd_in_path() -> Generator:
                 sys.path.remove(cwd)
 
 
-def find_app(app: str, attr_name: str="app"):#  -> EventBus:
+def find_app(app: str, attr_name: str = "app"):  #  -> EventBus:
     """
     Import an EventBus instance based on a path name.
 
@@ -51,7 +55,7 @@ def find_app(app: str, attr_name: str="app"):#  -> EventBus:
     attr_name: str
        Name of the EventBus instance inside the app. Defaults to 'app'.
     """
-    if ':' in app:
+    if ":" in app:
         module_name, attr_name = app.split(":")
     else:
         module_name = app
@@ -65,7 +69,9 @@ def find_app(app: str, attr_name: str="app"):#  -> EventBus:
     # Find bus instance within the module
     found = getattr(module, attr_name)
     if not isinstance(found, EventBus):
-        raise AttributeError(f"EventBus instance {attr_name} not found in {module_name}")
+        raise AttributeError(
+            f"EventBus instance {attr_name} not found in {module_name}"
+        )
 
     return found
 
@@ -89,8 +95,9 @@ def worker(app):
         with concurrent.futures.ProcessPoolExecutor(
             max_workers=num_workers
         ) as executor:
-            futures = [executor.submit(agent) for agent in agents]
-            for future in concurrent.futures.as_completed(futures):
-                future.result()
+            with cwd_in_path():
+                futures = [executor.submit(agent) for agent in agents]
+                for future in concurrent.futures.as_completed(futures):
+                    future.result()
     else:
         logger.error("No registered agents to run.")

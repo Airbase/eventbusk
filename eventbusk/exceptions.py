@@ -2,13 +2,14 @@
 Custom exceptions
 """
 
-__all__ = [
-    "EventBusError",
-    "AlreadyRegistered",
-    "AgentError"
-]
+__all__ = ["EventBusError", "AlreadyRegistered", "UnknownEvent", "AgentError"]
+
 
 class EventBusError(Exception):
+    pass
+
+
+class UnknownEvent(EventBusError):
     pass
 
 
