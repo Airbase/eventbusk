@@ -17,6 +17,7 @@ from .exceptions import AgentError, AlreadyRegistered, UnknownEvent
 logger = logging.getLogger(__name__)
 
 
+
 class Event:
     """
     Every new event must inherit this class and should be a dataclass.
@@ -28,6 +29,8 @@ class Event:
         foo: int
         bar: str
     """
+
+AgentT = Callable[[type[Event], int], Callable[[Event], None]]
 
 
 class EventBus:
@@ -65,10 +68,10 @@ class EventBus:
         # name of the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._agents: set[Callable] = set()
+        self._agents: set[AgentT] = set()
 
     @staticmethod
-    def _to_fqn(event_type: Union[type[Event], Callable]) -> str:
+    def _to_fqn(event_type: Union[type[Event], AgentT]) -> str:
         """
         Returns 'fully qualified name' of an event class or an agent, to identify them uniquely.
         """
@@ -90,21 +93,21 @@ class EventBus:
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: Callable = None, fail_silently=False):
+    def send(self, event: Event, on_delivery: Callable = None, fail_silently: bool=False):
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
         if not on_delivery:
-
-            def default_on_delivery(error, event):
+            # TODO: Add type hints
+            def _on_delivery(error, msg):
                 if error:
-                    logger.error(f"Event: {event.value()} delivery failed: {error}")
+                    logger.error(f"Event: {msg.value()} delivery failed: {error}")
                 else:
                     logger.info(
-                        f"Event: {event.value()} delivered to topic:{event.topic()} partition:{event.partition()}"
+                        f"Event: {msg.value()} delivered to topic:{msg.topic()} partition:{event.partition()}"
                     )
 
-            on_delivery = default_on_delivery
+            on_delivery = _on_delivery
 
         data = json.dumps(asdict(event)).encode("utf-8")
         try:
@@ -139,7 +142,7 @@ class EventBus:
                 f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
             )
 
-        def _action_decorator(func):
+        def _action_decorator(func: Callable):
             # TODO: Ensure this does not clash
             group = self._to_fqn(func)
             agent_fqn = self._to_fqn(func)
