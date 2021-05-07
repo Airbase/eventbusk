@@ -1,6 +1,8 @@
 """
 Custom exceptions
 """
+from __future__ import annotations
+
 
 __all__ = ["EventBusError", "AlreadyRegistered", "UnknownEvent", "AgentError"]
 

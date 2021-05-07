@@ -4,9 +4,9 @@ Command Line Interface
 from __future__ import annotations
 
 import concurrent.futures
+import logging
 import imp
 import importlib
-import logging
 import os
 import sys
 from contextlib import contextmanager, suppress
@@ -17,12 +17,6 @@ import click
 
 from .bus import EventBus
 
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logging.basicConfig(
-    encoding="utf-8",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +33,7 @@ def cwd_in_path() -> Generator:
         finally:
             with suppress(ValueError):
                 sys.path.remove(cwd)
+
 
 
 def find_app(app: str, attr_name: str = "app"):  #  -> EventBus:

@@ -1,8 +1,14 @@
 """
 Generic interface for brokers
 """
+from __future__ import annotations
+
+import logging
 
 from .kafka import KafkaConsumer, KafkaProducer
+
+logger = logging.getLogger(__name__)
+
 
 __all__ = [
     "Consumer",
