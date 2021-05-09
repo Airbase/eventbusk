@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from .kafka import KafkaConsumer, KafkaProducer
+from .kafka import KafkaConsumer, KafkaProducer, DeliveryCallBackT
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "Consumer",
     "Producer",
+    "DeliveryCallBackT"
 ]
 
 

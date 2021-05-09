@@ -11,7 +11,7 @@ import os
 import sys
 from contextlib import contextmanager, suppress
 from types import ModuleType
-from typing import Generator
+from typing import Generator, Optional
 
 import click
 
@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def cwd_in_path() -> Generator:
+def cwd_in_path() -> Generator[Optional[str], None, None]:
     """Context adding the current working directory to sys.path."""
     cwd = os.getcwd()
     if cwd in sys.path:
-        yield
+        yield None
     else:
         sys.path.insert(0, cwd)
         try:
@@ -85,14 +85,13 @@ def worker(app):
     bus = find_app(app)
 
     agents = bus.agents
-    num_workers = len(agents)
-    if len(agents) > 0:
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=num_workers
-        ) as executor:
-            with cwd_in_path():
-                futures = [executor.submit(agent) for agent in agents]
-                for future in concurrent.futures.as_completed(futures):
-                    future.result()
-    else:
+    if not agents:
         logger.error("No registered agents to run.")
+        return
+
+    num_workers = len(agents)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+        with cwd_in_path():
+            futures = [executor.submit(agent) for agent in agents]
+            for future in concurrent.futures.as_completed(futures):
+                future.result()

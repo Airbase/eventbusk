@@ -4,14 +4,19 @@ Custom exceptions
 from __future__ import annotations
 
 
-__all__ = ["EventBusError", "AlreadyRegistered", "UnknownEvent", "AgentError"]
+__all__ = [
+    "AgentError",
+    "AlreadyRegistered",
+    "EventBusError",
+    "UnRegisteredEvent",
+]
 
-
+# TODO: Figure out better names
 class EventBusError(Exception):
     pass
 
 
-class UnknownEvent(EventBusError):
+class UnRegisteredEvent(EventBusError):
     pass
 
 

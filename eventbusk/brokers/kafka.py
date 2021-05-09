@@ -3,8 +3,14 @@ from __future__ import annotations
 import logging
 from contextlib import ContextDecorator
 from dataclasses import dataclass
+from typing import Callable
 
-from confluent_kafka import Consumer, Producer
+
+from confluent_kafka import Consumer, Producer, KafkaError, cimpl
+
+# Delivery callback method `on_delivery` has the following type.
+DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
+
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +121,8 @@ class KafkaConsumer(ContextDecorator):
     def __repr__(self):
         return (
             f"<{self.__class__.__name__}("
-            f"broker=Broker(user=*, pass=*, host=*, port=*), "
-            f"topic=Topic({self.topic}), "
+            f"broker=*, "
+            f"topic={self.topic}, "
             f"group='{self.group}')>"
         )
 

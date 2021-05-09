@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 import concurrent.futures
 import json
@@ -11,14 +12,14 @@ from urllib.parse import urlparse
 
 from confluent_kafka import KafkaError
 
-from .brokers import Consumer, Producer
-from .exceptions import AgentError, AlreadyRegistered, UnknownEvent
+from .brokers import Consumer, Producer, DeliveryCallBackT
+from .exceptions import AgentError, AlreadyRegistered, UnRegisteredEvent
 
 logger = logging.getLogger(__name__)
 
 
-
-class Event:
+@dataclass
+class Event(ABC):
     """
     Every new event must inherit this class and should be a dataclass.
 
@@ -30,7 +31,9 @@ class Event:
         bar: str
     """
 
-AgentT = Callable[[type[Event], int], Callable[[Event], None]]
+EventT = type[Event]
+AgentT = Callable[[EventT], None]
+AgentWrappedT = Callable[[], None]
 
 
 class EventBus:
@@ -68,16 +71,16 @@ class EventBus:
         # name of the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._agents: set[AgentT] = set()
+        self._agents: set[AgentWrappedT] = set()
 
     @staticmethod
-    def _to_fqn(event_type: Union[type[Event], AgentT]) -> str:
+    def _to_fqn(event_type: Union[EventT, AgentT]) -> str:
         """
         Returns 'fully qualified name' of an event class or an agent, to identify them uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
-    def register_event(self, topic: str, event_type: type[Event]):
+    def register_event(self, topic: str, event_type: EventT):
         """
         Register an event to a bus.
 
@@ -85,7 +88,7 @@ class EventBus:
         """
         if self._topic_to_event.get(topic):
             raise AlreadyRegistered(
-                f"Event with the same topic has already been registered. [{topic=}]"
+                f"Event with the topic '{topic}' has already been registered.",
             )
 
         # Create a bidict for 'topic' -> 'mymodule.MyEvent'
@@ -93,44 +96,31 @@ class EventBus:
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: Callable = None, fail_silently: bool=False):
+    def send(self, event: Event, on_delivery: DeliveryCallBackT = None, flush: bool=False, fail_silently: bool=False):
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
-
-        if not on_delivery:
-            # TODO: Add type hints
-            def _on_delivery(error, msg):
-                if error:
-                    logger.error(f"Event: {msg.value()} delivery failed: {error}")
-                else:
-                    logger.info(
-                        f"Event: {msg.value()} delivered to topic:{msg.topic()} partition:{event.partition()}"
-                    )
-
-            on_delivery = _on_delivery
 
         data = json.dumps(asdict(event)).encode("utf-8")
         try:
             self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
-            # TODO: Do we need to flush?
-            # self.producer.flush()
+            if flush:
+                self.producer.flush()
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(
-                    f"Error producing event. [event={event.__class__.__name__} {topic=}]",
+                    f"Error producing event.",
+                    extra={"event": event_fqn, "topic": topic},
                     exc_info=True,
                 )
             else:
                 raise exc
 
-    def _register_agent(self, agent):
-        self._agents.add(agent)
-
     @property
-    def agents(self) -> set[Callable]:
+    def agents(self) -> set[AgentWrappedT]:
         return self._agents
 
-    def agent(self, event_type: type[Event], poll_timeout: int = 1):
+    # TODO: add group parameter?
+    def agent(self, event_type: EventT, poll_timeout: int = 1):
         """
         Decorator to convert a function into an agent.
 
@@ -138,13 +128,13 @@ class EventBus:
         """
         event_fqn = self._to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
-            raise UnknownEvent(
+            raise UnRegisteredEvent(
                 f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
             )
 
-        def _action_decorator(func: Callable):
-            # TODO: Ensure this does not clash
-            group = self._to_fqn(func)
+        def _outer(func: AgentT):
+            reveal_type(func)
+            group = self._to_fqn(func) # TODO: Ensure this does not clash
             agent_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
             log_context = dict(
@@ -152,9 +142,9 @@ class EventBus:
             )
 
             @wraps(func)
-            def wrapper(*args, **kwargs):
-
+            def wrapper() -> None:
                 with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
+                    # TODO: Max-number-of-tasks
                     while True:
                         try:
                             serialized_event = consumer.poll(poll_timeout)
@@ -178,16 +168,16 @@ class EventBus:
                                 continue
 
                             # Deserialise to the dataclass of the event
-                            event = event_type(
-                                **json.loads(serialized_event.value().decode("utf-8"))
-                            )
+                            event_data = json.loads(serialized_event.value().decode("utf-8"))
+                            event = event_type(**event_data)
 
                             try:
+                                reveal_type(func)
                                 func(event=event)
                                 success = True
                             except Exception as exc:
                                 logger.exception(
-                                    f"Error consuming event. ",
+                                    f"Error while processing event. ",
                                     extra={**log_context, **{"data": serialized_event}},
                                     exc_info=True,
                                 )
@@ -203,8 +193,9 @@ class EventBus:
                             logger.info(f"Closing agent.", extra=log_context)
                             break
 
-            self._register_agent(wrapper)
+            # Add to registry
+            self._agents.add(wrapper)
 
             return wrapper
 
-        return _action_decorator
+        return _outer
