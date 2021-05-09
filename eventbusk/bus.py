@@ -7,7 +7,7 @@ import logging
 import time
 from dataclasses import asdict, dataclass
 from functools import wraps
-from typing import Callable, Union
+from typing import Callable, Union, Type
 from urllib.parse import urlparse
 
 from confluent_kafka import KafkaError
@@ -30,9 +30,10 @@ class Event(ABC):
         foo: int
         bar: str
     """
+    pass
 
-EventT = type[Event]
-AgentT = Callable[[EventT], None]
+EventT = Type[Event]
+AgentT = Callable[[Event], None]
 AgentWrappedT = Callable[[], None]
 
 
@@ -133,7 +134,6 @@ class EventBus:
             )
 
         def _outer(func: AgentT):
-            reveal_type(func)
             group = self._to_fqn(func) # TODO: Ensure this does not clash
             agent_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
@@ -169,11 +169,11 @@ class EventBus:
 
                             # Deserialise to the dataclass of the event
                             event_data = json.loads(serialized_event.value().decode("utf-8"))
+                            reveal_type(event_type)
                             event = event_type(**event_data)
 
                             try:
-                                reveal_type(func)
-                                func(event=event)
+                                func(event)
                                 success = True
                             except Exception as exc:
                                 logger.exception(

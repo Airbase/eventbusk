@@ -11,9 +11,9 @@ confluent-kafka = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.12.1"
-pytest = "^6.2.3"
+pytest = "^6.2.4"
 pytest-cov = "^2.11.1"
-pytest-mock = "^3.6.0"
+pytest-mock = "^3.6.1"
 pytest-socket = "^0.4.0"
 pytest-xdist = "^2.2.1"
 taskipy = "^1.7.0"

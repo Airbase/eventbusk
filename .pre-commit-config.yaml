@@ -11,7 +11,7 @@ repos:
     -   id: check-yaml
 
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.14.0
+    rev: v2.15.0
     hooks:
     -   id: pyupgrade
         args: ["--py38-plus", "--keep-runtime-typing"]
@@ -29,7 +29,7 @@ repos:
           - toml
 
 -   repo: https://github.com/ambv/black
-    rev: 21.4b2
+    rev: 21.5b0
     hooks:
     - id: black
       args: [--line-length=88, --safe]
