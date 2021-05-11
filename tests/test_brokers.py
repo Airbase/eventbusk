@@ -1,8 +1,9 @@
 import pytest
 
 from eventbusk.brokers import Consumer, Producer
-from eventbusk.brokers.dummy import DummyConsumer, DummyProducer, DummyBroker
+from eventbusk.brokers.dummy import DummyBroker, DummyConsumer, DummyProducer
 from eventbusk.brokers.kafka import KafkaConsumer, KafkaProducer
+
 
 # Factories
 # ---------
@@ -41,6 +42,7 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
         assert isinstance(consumer, DummyConsumer)
     else:
         raise ValueError("Unsupported broker.")
+
 
 @pytest.mark.parametrize(
     "broker,topic,group",
@@ -98,6 +100,7 @@ def test_producer_factory(broker: str) -> None:
 # Dummy broker
 # -------------
 
+
 def test_dummy_producer() -> None:
     """
     Test basic dummy producer functionality
@@ -133,5 +136,7 @@ def test_kafka_consumer() -> None:
     """
     Test basic kafka consumer functionality
     """
-    consumer = KafkaConsumer(broker="kafka://localhost:9092", topic="mytopic", group="mygroup")
+    consumer = KafkaConsumer(
+        broker="kafka://localhost:9092", topic="mytopic", group="mygroup"
+    )
     # consumer# .produce(topic="foo", value="lorem ipsum")

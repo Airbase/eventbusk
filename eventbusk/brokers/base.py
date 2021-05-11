@@ -3,19 +3,25 @@ Base interface for event consumer and producers.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
-import logging
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 
-class BaseBroker(ABC):
+__all__ = [
+    "BaseBrokerURI" "BaseConsumer",
+    "BaseProducer",
+]
+
+
+class BaseBrokerURI(ABC):
     @classmethod
     @abstractmethod
-    def from_uri(cls, uri: str) -> BaseBroker:
+    def from_uri(cls, uri: str) -> BaseBrokerURI:
         """
         Return a instance created from a URI
         """
@@ -28,7 +34,8 @@ class BaseConsumer(ContextDecorator, ABC):
     All event consumers are exposed as a ContextDecorator, so it can be used
     via a `with` statement and any connections are automatically closed on exit.
     """
-    broker: BaseBroker
+
+    broker: BaseBrokerURI
     topic: str
     group: str
 
@@ -41,7 +48,7 @@ class BaseConsumer(ContextDecorator, ABC):
         )
 
     @abstractmethod
-    def poll(self, timeout: int=1) -> Optional[str]:
+    def poll(self, timeout: int = 1) -> Optional[str]:
         """
         Poll for a specified time in seconds for new messages
         """
@@ -63,16 +70,20 @@ class BaseProducer(ABC):
     """
 
     def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__}("
-            f"broker=*>"
-        )
+        return f"<{self.__class__.__name__}(" f"broker=*>"
 
     def __init__(self, broker: str):
         super().__init__()
 
     @abstractmethod
-    def produce(self, topic: str, value: str, flush: bool=True, on_delivery: DeliveryCallBackT=None, fail_silently: bool=False) -> None:
+    def produce(
+        self,
+        topic: str,
+        value: str,
+        flush: bool = True,
+        on_delivery: DeliveryCallBackT = None,
+        fail_silently: bool = False,
+    ) -> None:
         """
         Send a message on the specific topic.
 

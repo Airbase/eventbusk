@@ -4,27 +4,25 @@ required, eg. CI pipelines.
 """
 from __future__ import annotations
 
-import time
 import logging
+import time
 from contextlib import ContextDecorator
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Callable, Optional
 
-from .base import BaseConsumer, BaseProducer, DeliveryCallBackT, BaseBroker
-
-
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
 
 logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "DummyConsumer",
-    "DummyProducer",
+    "BrokerURI" "Consumer",
+    "Producer",
 ]
 
 
 @dataclass
-class DummyBroker(BaseBroker):
+class BrokerURI(BaseBrokerURI):
     """
     Broker URI
 
@@ -36,7 +34,7 @@ class DummyBroker(BaseBroker):
     """
 
     @classmethod
-    def from_uri(cls, uri: str) -> DummyBroker:
+    def from_uri(cls, uri: str) -> BrokerURI:
         invalid_format = ValueError("Broker URI should be of the format 'dummy://'")
 
         if not uri.startswith("dummy://"):
@@ -45,7 +43,7 @@ class DummyBroker(BaseBroker):
         return cls()
 
 
-class DummyConsumer(BaseConsumer):
+class Consumer(BaseConsumer):
     """
     Dummy event consumer which simply loses all events!
 
@@ -57,11 +55,11 @@ class DummyConsumer(BaseConsumer):
 
     def __init__(self, broker: str, topic: str, group: str) -> None:
         super().__init__()
-        self.broker = DummyBroker.from_uri(broker)
+        self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
         self.group = group
 
-    def poll(self, timeout: int=1) -> Optional[str]:
+    def poll(self, timeout: int = 1) -> Optional[str]:
         """
         Sleeps for the required timeout, and returns no message.
         """
@@ -74,22 +72,33 @@ class DummyConsumer(BaseConsumer):
         """
 
 
-class DummyProducer(BaseProducer):
+class Producer(BaseProducer):
     """
     Dummy event producer.
     """
+
     def __init__(self, broker: str):
         super().__init__(broker)
-        self.broker = DummyBroker.from_uri(broker)
+        self.broker = BrokerURI.from_uri(broker)
 
-    def produce(self, topic: str, value: str, flush: bool=True, on_delivery: DeliveryCallBackT=None, fail_silently: bool=False) -> None:
+    def produce(
+        self,
+        topic: str,
+        value: str,
+        flush: bool = True,
+        on_delivery: DeliveryCallBackT = None,
+        fail_silently: bool = False,
+    ) -> None:
         """
         Only logs the message, does not deliver.
         """
-        logger.info("Producing message.", extra={
-            "topic": topic,
-            "message": value,
-            "flush": True,
-        })
+        logger.info(
+            "Producing message.",
+            extra={
+                "topic": topic,
+                "message": value,
+                "flush": True,
+            },
+        )
         # TODO: call
         # on_delivery

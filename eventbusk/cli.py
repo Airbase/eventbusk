@@ -4,9 +4,9 @@ Command Line Interface
 from __future__ import annotations
 
 import concurrent.futures
-import logging
 import imp
 import importlib
+import logging
 import os
 import sys
 from contextlib import contextmanager, suppress
@@ -33,7 +33,6 @@ def cwd_in_path() -> Generator[Optional[str], None, None]:
         finally:
             with suppress(ValueError):
                 sys.path.remove(cwd)
-
 
 
 def find_app(app: str, attr_name: str = "app") -> EventBus:

@@ -3,26 +3,30 @@ from __future__ import annotations
 import logging
 from contextlib import ContextDecorator
 from dataclasses import dataclass
-from typing import Callable, Union, Mapping
+from typing import Callable, Mapping, Union
 
+from confluent_kafka import Consumer as CConsumer
+from confluent_kafka import KafkaError
+from confluent_kafka import Producer as CProducer
+from confluent_kafka import cimpl
 
-from confluent_kafka import Consumer, Producer, KafkaError, cimpl
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
 
 # Delivery callback method `on_delivery` has the following type.
-DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
+# DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
 
 
 logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "KafkaConsumer",
-    "KafkaProducer",
+    "BrokerURI" "Consumer",
+    "Producer",
 ]
 
 
 @dataclass
-class Broker:
+class BrokerURI(BaseBrokerURI):
     """
     Broker URI
 
@@ -43,7 +47,7 @@ class Broker:
     sasl: bool
 
     @classmethod
-    def from_uri(cls, uri: str) -> Broker:
+    def from_uri(cls, uri: str) -> BrokerURI:
         invalid_format = ValueError(
             "Broker URI(without SASL) should be of the format 'kafka://host:port' "
             "or 'kafkas://user:pass@host:port'"
@@ -79,11 +83,15 @@ class Broker:
             raise invalid_format
 
         return cls(
-            username=username, password=password, host=host, port=port, sasl=sasl
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            sasl=sasl,
         )
 
     @property
-    def default_props(self) -> Mapping[str, Union[int, str, bool]]:
+    def default_props(self) -> Mapping[str, str]:
         props = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
@@ -99,7 +107,7 @@ class Broker:
         return props.copy()
 
 
-class KafkaConsumer(ContextDecorator):
+class Consumer(ContextDecorator):
     """
     Kafka consumer as a context manager.
 
@@ -113,10 +121,10 @@ class KafkaConsumer(ContextDecorator):
 
     def __init__(self, broker: str, topic: str, group: str):
         super().__init__()
-        self.broker = Broker.from_uri(broker)
+        self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
         self.group = group
-        self.consumer: Consumer = None
+        # self._consumer: CConsumer = None
 
     def __repr__(self) -> str:
         return (
@@ -135,21 +143,50 @@ class KafkaConsumer(ContextDecorator):
                 "enable.auto.offset.store": False,  # TODO: autocommit?
             }
         )
-        self.consumer = Consumer(props)
-        self.consumer.subscribe([self.topic])
-        return self.consumer
+        self._consumer = CConsumer(props)
+        self._consumer.subscribe([self.topic])
+        return self
 
-    def __exit__(self, type, value, traceback):
-        self.consumer.close()
+    def __exit__(self, type, value, traceback) -> None:
+        self._consumer.close()
 
         if type and value and traceback:
             logger.exception(f"KafkaConsumer error. [{self}]", exc_info=True)
 
 
-def kafka_producer_factory(broker: str) -> Producer:
-    broker_obj = Broker.from_uri(broker)
-    props = broker_obj.default_props
-    return Producer(props)
+class KafkaProducer(BaseProducer):
+    """
+    Kafka event producer.
+    """
 
+    def __init__(self, broker: str):
+        super().__init__(broker)
+        self.broker = BrokerURI.from_uri(broker)
+        props = self.broker.default_props
+        self._producer = CProducer(props)
 
-KafkaProducer = kafka_producer_factory
+    def produce(
+        self,
+        topic: str,
+        value: str,
+        flush: bool = True,
+        on_delivery: DeliveryCallBackT = None,
+        fail_silently: bool = False,
+    ) -> None:
+        """
+        Only logs the message, does not deliver.
+        """
+        logger.info(
+            "Producing message.",
+            extra={
+                "topic": topic,
+                "message": value,
+                "flush": flush,
+            },
+        )
+        self._producer.poll(0)  # TODO: ?
+        self._producer.produce(
+            topic=topic, value=value, flush=flush, on_delivery=on_delivery
+        )
+        if flush:
+            self._producer.flush()

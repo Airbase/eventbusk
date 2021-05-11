@@ -1,18 +1,18 @@
 from __future__ import annotations
-from abc import ABC
 
 import concurrent.futures
 import json
 import logging
 import time
+from abc import ABC
 from dataclasses import asdict, dataclass
 from functools import wraps
-from typing import Callable, Union, Type
+from typing import Callable, Type, Union
 from urllib.parse import urlparse
 
 from confluent_kafka import KafkaError
 
-from .brokers import Consumer, Producer, DeliveryCallBackT
+from .brokers import Consumer, DeliveryCallBackT, Producer
 from .exceptions import AgentError, AlreadyRegistered, UnRegisteredEvent
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class Event(ABC):
         foo: int
         bar: str
     """
+
 
 EventT = Type[Event]
 AgentT = Callable[[Event], None]
@@ -61,7 +62,7 @@ class EventBus:
 
     def __init__(self, broker: str):
         self.broker = broker
-        # TODO: Lazy create on first send
+        # TODO: Make Lazy create on first send?
         self.producer = Producer(broker)
 
         # Registries
@@ -96,15 +97,19 @@ class EventBus:
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: DeliveryCallBackT = None, flush: bool=True, fail_silently: bool=False) -> None:
+    def send(
+        self,
+        event: Event,
+        on_delivery: DeliveryCallBackT = None,
+        flush: bool = True,
+        fail_silently: bool = False,
+    ) -> None:
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
         data = json.dumps(asdict(event)).encode("utf-8")
         try:
             self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
-            if flush:
-                self.producer.flush()
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(
@@ -161,11 +166,16 @@ class EventBus:
                                         **{"error": serialized_event.error()},
                                     },
                                 )
-                                self.sleep(1, "Error on last consumption, topic might be blocked.")
+                                self.sleep(
+                                    1,
+                                    "Error on last consumption, topic might be blocked.",
+                                )
                                 continue
 
                             # Deserialise to the dataclass of the event
-                            event_data = json.loads(serialized_event.value().decode("utf-8"))
+                            event_data = json.loads(
+                                serialized_event.value().decode("utf-8")
+                            )
                             event = event_type(**event_data)
 
                             try:
@@ -193,6 +203,6 @@ class EventBus:
 
         return _outer
 
-    def sleep(self, seconds:int=1, message: str="") -> None:
+    def sleep(self, seconds: int = 1, message: str = "") -> None:
         logger.info(f"Sleeping for {seconds}s. {message}")
         time.sleep(seconds)

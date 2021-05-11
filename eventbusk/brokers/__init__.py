@@ -5,18 +5,16 @@ from __future__ import annotations
 
 import logging
 
-from .base import BaseConsumer, BaseProducer
-from .kafka import KafkaConsumer, KafkaProducer, DeliveryCallBackT
-from .dummy import DummyConsumer, DummyProducer
+from .base import BaseConsumer, BaseProducer, DeliveryCallBackT
+from .dummy import Consumer as DummyConsumer
+from .dummy import Consumer as DummyProducer
+from .kafka import Consumer as KafkaConsumer
+from .kafka import Producer as KafkaProducer
 
 logger = logging.getLogger(__name__)
 
 
-__all__ = [
-    "Consumer",
-    "Producer",
-    "DeliveryCallBackT"
-]
+__all__ = ["Consumer", "Producer", "DeliveryCallBackT"]
 
 
 def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:
@@ -29,6 +27,7 @@ def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:
         return DummyConsumer(broker=broker, topic=topic, group=group)
     else:
         raise ValueError("Unsupported broker.")
+
 
 Consumer = consumer_factory
 
