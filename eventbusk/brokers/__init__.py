@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import logging
 
+from .base import BaseConsumer, BaseProducer
 from .kafka import KafkaConsumer, KafkaProducer, DeliveryCallBackT
+from .dummy import DummyConsumer, DummyProducer
 
 logger = logging.getLogger(__name__)
 
@@ -17,22 +19,30 @@ __all__ = [
 ]
 
 
-def consumer_factory(broker: str, topic: str, group: str):
+def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:
     """
     Return a consumer instance for the specied broker url
     """
-    # TODO: Only kafka supported for now.
-    return KafkaConsumer(broker=broker, topic=topic, group=group)
-
+    if broker.startswith("kafka"):
+        return KafkaConsumer(broker=broker, topic=topic, group=group)
+    elif broker.startswith("dummy"):
+        return DummyConsumer(broker=broker, topic=topic, group=group)
+    else:
+        raise ValueError("Unsupported broker.")
 
 Consumer = consumer_factory
 
 
-def producer_factory(broker: str):
+def producer_factory(broker: str) -> BaseProducer:
     """
-    Return a consumer instance for the specied broker url
+    Return a producer instance for the specied broker url
     """
-    return KafkaProducer(broker)
+    if broker.startswith("kafka"):
+        return KafkaProducer(broker)
+    elif broker.startswith("dummy"):
+        return DummyProducer(broker)
+    else:
+        raise ValueError("Unsupported broker.")
 
 
 Producer = producer_factory

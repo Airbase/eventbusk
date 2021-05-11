@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from contextlib import ContextDecorator
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Union, Mapping
 
 
 from confluent_kafka import Consumer, Producer, KafkaError, cimpl
@@ -83,7 +83,7 @@ class Broker:
         )
 
     @property
-    def default_props(self):
+    def default_props(self) -> Mapping[str, Union[int, str, bool]]:
         props = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
@@ -118,7 +118,7 @@ class KafkaConsumer(ContextDecorator):
         self.group = group
         self.consumer: Consumer = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}("
             f"broker=*, "
@@ -126,7 +126,7 @@ class KafkaConsumer(ContextDecorator):
             f"group='{self.group}')>"
         )
 
-    def __enter__(self):
+    def __enter__(self) -> Consumer:
         props = self.broker.default_props
         props.update(
             {

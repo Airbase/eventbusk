@@ -30,7 +30,6 @@ class Event(ABC):
         foo: int
         bar: str
     """
-    pass
 
 EventT = Type[Event]
 AgentT = Callable[[Event], None]
@@ -81,7 +80,7 @@ class EventBus:
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
-    def register_event(self, topic: str, event_type: EventT):
+    def register_event(self, topic: str, event_type: EventT) -> None:
         """
         Register an event to a bus.
 
@@ -97,7 +96,7 @@ class EventBus:
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
-    def send(self, event: Event, on_delivery: DeliveryCallBackT = None, flush: bool=False, fail_silently: bool=False):
+    def send(self, event: Event, on_delivery: DeliveryCallBackT = None, flush: bool=True, fail_silently: bool=False) -> None:
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
@@ -133,8 +132,9 @@ class EventBus:
                 f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
             )
 
-        def _outer(func: AgentT):
-            group = self._to_fqn(func) # TODO: Ensure this does not clash
+        def _outer(func: AgentT) -> AgentWrappedT:
+            # TODO: Ensure group name does not clash
+            group = self._to_fqn(func)
             agent_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
             log_context = dict(
@@ -151,8 +151,6 @@ class EventBus:
 
                             # No message to consume.
                             if serialized_event is None:
-                                logger.info("Sleeping1")
-                                time.sleep(1)
                                 continue
 
                             if serialized_event.error():
@@ -163,13 +161,11 @@ class EventBus:
                                         **{"error": serialized_event.error()},
                                     },
                                 )
-                                logger.info("Sleeping2")
-                                time.sleep(1)
+                                self.sleep(1, "Error on last consumption, topic might be blocked.")
                                 continue
 
                             # Deserialise to the dataclass of the event
                             event_data = json.loads(serialized_event.value().decode("utf-8"))
-                            reveal_type(event_type)
                             event = event_type(**event_data)
 
                             try:
@@ -185,9 +181,6 @@ class EventBus:
 
                             if success:
                                 consumer.store_offsets(message=serialized_event)
-                            else:
-                                logger.info("Sleeping3")
-                                time.sleep(1)
 
                         except KeyboardInterrupt:
                             logger.info(f"Closing agent.", extra=log_context)
@@ -199,3 +192,7 @@ class EventBus:
             return wrapper
 
         return _outer
+
+    def sleep(self, seconds:int=1, message: str="") -> None:
+        logger.info(f"Sleeping for {seconds}s. {message}")
+        time.sleep(seconds)

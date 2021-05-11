@@ -36,7 +36,7 @@ def cwd_in_path() -> Generator[Optional[str], None, None]:
 
 
 
-def find_app(app: str, attr_name: str = "app"):  #  -> EventBus:
+def find_app(app: str, attr_name: str = "app") -> EventBus:
     """
     Import an EventBus instance based on a path name.
 
@@ -72,13 +72,13 @@ def find_app(app: str, attr_name: str = "app"):  #  -> EventBus:
 
 
 @click.group()
-def cli():
+def cli() -> None:
     """Main entry point."""
 
 
 @cli.command()
 @click.option("--app", "-A", help="Path to EventBus instance. eg. 'mymodule:app'")
-def worker(app):
+def worker(app: str) -> None:
     """
     Start consumer workers
     """
