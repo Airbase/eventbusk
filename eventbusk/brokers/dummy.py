@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import logging
 import time
-from contextlib import ContextDecorator
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Optional
 
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
 
@@ -16,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "BrokerURI" "Consumer",
+    "BrokerURI",
+    "Consumer",
     "Producer",
 ]
 
@@ -35,6 +35,9 @@ class BrokerURI(BaseBrokerURI):
 
     @classmethod
     def from_uri(cls, uri: str) -> BrokerURI:
+        """
+        Instantiate from a URI like "dummy://"
+        """
         invalid_format = ValueError("Broker URI should be of the format 'dummy://'")
 
         if not uri.startswith("dummy://"):

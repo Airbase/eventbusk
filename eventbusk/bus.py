@@ -1,6 +1,8 @@
+"""
+EventBus implementation
+"""
 from __future__ import annotations
 
-import concurrent.futures
 import json
 import logging
 import time
@@ -8,7 +10,6 @@ from abc import ABC
 from dataclasses import asdict, dataclass
 from functools import wraps
 from typing import Callable, Type, Union
-from urllib.parse import urlparse
 
 from confluent_kafka import KafkaError
 
@@ -39,6 +40,11 @@ AgentWrappedT = Callable[[], None]
 
 class EventBus:
     """
+    An EventBus is an a concrete instance of an event bus.
+
+    It is akin to a WSGI Application, or Celery instance.  A project might contain
+    multiple instances of the bus connected to different brokers.
+
     Usage
     -----
     bus = EventBus(broker="kafka://user:pass@localhost:9092")
@@ -67,9 +73,10 @@ class EventBus:
 
         # Registries
         # Topic <--> Event type is a 1-1 relation right now, i.e. a topic can only
-        # handle a single type of event. So we maintain a bidirectional map underneath using
-        # two dictionaries. The dictionaries store a link between topic name and fully qualified
-        # name of the event class.
+        # handle a single type of event. So we maintain a bidirectional map underneath
+        # using two dictionaries.
+        # The dictionaries store a link between topic name and fully qualified name of
+        # the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
         self._agents: set[AgentWrappedT] = set()
@@ -77,7 +84,8 @@ class EventBus:
     @staticmethod
     def _to_fqn(event_type: Union[EventT, AgentT]) -> str:
         """
-        Returns 'fully qualified name' of an event class or an agent, to identify them uniquely.
+        Returns 'fully qualified name' of an event class or an agent, to identify them
+        uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
@@ -104,17 +112,26 @@ class EventBus:
         flush: bool = True,
         fail_silently: bool = False,
     ) -> None:
+        """
+        Send an event on the bus.
+        """
         event_fqn = self._to_fqn(event.__class__)
         topic = self._event_to_topic[event_fqn]
 
         data = json.dumps(asdict(event)).encode("utf-8")
         try:
-            self.producer.produce(topic=topic, value=data, on_delivery=on_delivery)
+            self.producer.produce(
+                topic=topic, value=data, flush=flush, on_delivery=on_delivery
+            )
+        # TODO: Replace with ProducerError
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(
-                    f"Error producing event.",
-                    extra={"event": event_fqn, "topic": topic},
+                    "Error producing event.",
+                    extra={
+                        "event": event_fqn,
+                        "topic": topic
+                    },
                     exc_info=True,
                 )
             else:
@@ -122,6 +139,9 @@ class EventBus:
 
     @property
     def agents(self) -> set[AgentWrappedT]:
+        """
+        Returns a set of agents(consumers) of events.
+        """
         return self._agents
 
     # TODO: add group parameter?
@@ -134,7 +154,8 @@ class EventBus:
         event_fqn = self._to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
             raise UnknownEvent(
-                f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
+                "Register the event to a topic using "
+                f"`bus.register_event('foo_topic', {event_type})`"
             )
 
         def _outer(func: AgentT) -> AgentWrappedT:
@@ -152,7 +173,16 @@ class EventBus:
                     # TODO: Max-number-of-tasks
                     while True:
                         try:
-                            message = consumer.poll(poll_timeout)
+                            try:
+                                message = consumer.poll(poll_timeout)
+                            except ConsumerError:
+                                self.sleep(
+                                    seconds=1,
+                                    message=(
+                                        "Error on polling, " "topic might be blocked."
+                                    ),
+                                )
+                                continue
 
                             # No message to consume.
                             if message is None:
@@ -160,30 +190,34 @@ class EventBus:
 
                             if message.error():
                                 logger.warning(
-                                    f"Error consuming event.",
+                                    "Error consuming event.",
                                     extra={
                                         **log_context,
                                         **{"error": message.error()},
                                     },
                                 )
                                 self.sleep(
-                                    1,
-                                    "Error on last consumption, topic might be blocked.",
+                                    seconds=1,
+                                    message=(
+                                        "Error on last consumption, "
+                                        "topic might be blocked."
+                                    ),
                                 )
                                 continue
 
                             # Deserialise to the dataclass of the event
-                            event_data = json.loads(
-                                message.value().decode("utf-8")
-                            )
+                            event_data = json.loads(message.value().decode("utf-8"))
                             event = event_type(**event_data)
 
                             try:
                                 func(event)
                                 success = True
-                            except Exception as exc:
+                            except Exception:  # pylint: disable=broad-except
                                 logger.exception(
-                                    f"Error while processing event. ",
+                                    (
+                                        "Error while processing event. "
+                                        "topic might be blocked"
+                                    ),
                                     extra={**log_context, **{"data": event}},
                                     exc_info=True,
                                 )
@@ -193,7 +227,7 @@ class EventBus:
                                 consumer.ack(message=message)
 
                         except KeyboardInterrupt:
-                            logger.info(f"Closing agent.", extra=log_context)
+                            logger.info("Closing agent.", extra=log_context)
                             break
 
             # Add to registry
@@ -203,6 +237,10 @@ class EventBus:
 
         return _outer
 
-    def sleep(self, seconds: int = 1, message: str = "") -> None:
+    @staticmethod
+    def sleep(seconds: int = 1, message: str = "") -> None:
+        """
+        Helper to sleep and log a custom message
+        """
         logger.info(f"Sleeping for {seconds}s. {message}")
         time.sleep(seconds)

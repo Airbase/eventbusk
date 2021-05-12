@@ -88,6 +88,7 @@ def worker(app: str) -> None:
         return
 
     num_workers = len(agents)
+    logger.info(f"Found {num_workers} agents.")
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
         with cwd_in_path():
             futures = [executor.submit(agent) for agent in agents]

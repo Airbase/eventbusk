@@ -1,8 +1,16 @@
 import pytest
 
 from eventbusk.brokers import Consumer, Producer
-from eventbusk.brokers.dummy import BrokerURI as DummyBrokerURI, Consumer as DummyConsumer, Producer as DummyProducer
-from eventbusk.brokers.kafka import BrokerURI as KafkaBrokerURI, Consumer as KafkaConsumer, Producer as KafkaProducer
+from eventbusk.brokers.dummy import (
+    BrokerURI as DummyBrokerURI,
+    Consumer as DummyConsumer,
+    Producer as DummyProducer,
+)
+from eventbusk.brokers.kafka import (
+    BrokerURI as KafkaBrokerURI,
+    Consumer as KafkaConsumer,
+    Producer as KafkaProducer,
+)
 
 
 # Factories
@@ -130,7 +138,9 @@ def test_kafka_producer(mocker, topic="foo", value="lorem ipsum") -> None:
     # Given a Kafka producer that
     # mocks the underlying confluent producer so it doesn't try to connect
     cproducer = mocker.Mock()
-    CProducer = mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)
+    CProducer = mocker.patch(
+        "eventbusk.brokers.kafka.CProducer", return_value=cproducer
+    )
     producer = KafkaProducer(broker="kafka://localhost:9092")
 
     # When we produce an event
@@ -138,7 +148,7 @@ def test_kafka_producer(mocker, topic="foo", value="lorem ipsum") -> None:
     assert cproducer._produce.called_once_with(topic="foo", value=value)
 
 
-def test_kafka_consumer(mocker, message: str="lorem ipsum", timeout:int =0) -> None:
+def test_kafka_consumer(mocker, message: str = "lorem ipsum", timeout: int = 0) -> None:
     """
     Test basic kafka consumer functionality
     """
@@ -146,12 +156,15 @@ def test_kafka_consumer(mocker, message: str="lorem ipsum", timeout:int =0) -> N
     # to avoid making a connection
     cconsumer = mocker.Mock()
     cconsumer.poll.return_value = message
-    CConsumer = mocker.patch("eventbusk.brokers.kafka.CConsumer", return_value=cconsumer)
-    with KafkaConsumer(broker="kafka://localhost:9092", topic="mytopic", group="mygroup") as consumer:
+    CConsumer = mocker.patch(
+        "eventbusk.brokers.kafka.CConsumer", return_value=cconsumer
+    )
+    with KafkaConsumer(
+        broker="kafka://localhost:9092", topic="mytopic", group="mygroup"
+    ) as consumer:
 
         # When a consumer is polled and a message is acknowledge
-        message = consumer.poll(timeout=timeout
-                                )
+        message = consumer.poll(timeout=timeout)
         consumer.ack(message=message)
 
     # Then ensure underlying confluent consumer is correctly called

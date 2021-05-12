@@ -163,7 +163,6 @@ class Consumer(BaseConsumer):
         """
         Poll the topic for new messages
         """
-        print(self._consumer.poll, timeout)
         return self._consumer.poll(timeout)
 
     def ack(self, message):
@@ -199,26 +198,21 @@ class Producer(BaseProducer):
             "Producing message.",
             extra={
                 "topic": topic,
-                "message": value,
+                "value": value,
                 "flush": flush,
             },
         )
         try:
-            self._producer.poll(0)  # TODO: ?
-            self._producer.produce(
-                topic=topic, value=value,  on_delivery=on_delivery
-            )
+            # self._producer.poll(0)  # TODO: ?
+            print(topic, value)
+            self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
             if flush:
                 self._producer.flush()
-
         except KafkaError as exc:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
-                    extra={
-                        "topic": topic,
-                        "flush": flush
-                    },
+                    extra={"topic": topic, "flush": flush},
                     exc_info=True,
                 )
             else:

@@ -1,21 +1,25 @@
 from dataclasses import dataclass
 
-import pytest
-
 from eventbusk import Event, EventBus
 
 
 @dataclass
 class Foo(Event):
+    """
+    Dummy event
+    """
     first: int
 
 
 @dataclass
 class Bar(Event):
+    """
+    Dummy event
+    """
     second: int
 
 
-def test_bus_send(mocker):
+def test_bus_send(mocker) -> None:
     """
     Test basic producer
     """
@@ -31,11 +35,10 @@ def test_bus_send(mocker):
     bar_event = Bar(second=1)
 
     # When we send events of a different types
-    def on_delivery(error, event):
+    def on_delivery(error, event) -> None:
         """
         Do nothing delivery handler
         """
-        pass
 
     bus.send(foo_event, on_delivery)
     bus.send(bar_event, on_delivery)

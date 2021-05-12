@@ -29,7 +29,7 @@ repos:
           - toml
 
 -   repo: https://github.com/ambv/black
-    rev: 21.5b0
+    rev: 21.5b1
     hooks:
     - id: black
       args: [--line-length=88, --safe]
@@ -40,6 +40,12 @@ repos:
     -   id: pylint
         args: [--extension-pkg-whitelist=django]
         additional_dependencies: ["Django"]
+
+-   repo: https://github.com/pycqa/flake8
+    rev: "3.9.2"
+    hooks:
+    -   id: flake8
+
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v0.812
