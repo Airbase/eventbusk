@@ -203,8 +203,8 @@ class Producer(BaseProducer):
             },
         )
         try:
-            # self._producer.poll(0)  # TODO: ?
-            print(topic, value)
+            # Trigger any available delivery report callbacks from previous produce
+            self._producer.poll(0)
             self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
             if flush:
                 self._producer.flush()
