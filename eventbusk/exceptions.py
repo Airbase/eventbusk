@@ -3,25 +3,40 @@ Custom exceptions
 """
 from __future__ import annotations
 
+
 __all__ = [
-    "AgentError",
     "AlreadyRegistered",
+    "ConsumerError",
     "EventBusError",
-    "UnRegisteredEvent",
+    "UnknownEvent",
 ]
 
-# TODO: Figure out better names
+
 class EventBusError(Exception):
-    pass
+    """
+    Base of exceptions raised by the bus.
+    """
 
 
-class UnRegisteredEvent(EventBusError):
-    pass
+class UnknownEvent(EventBusError):
+    """
+    Raised when an agent is created for an event the bus does not recognize.
+    """
 
 
 class AlreadyRegistered(EventBusError):
-    pass
+    """
+    Raised when an event is registered more than once to the bus.
+    """
 
 
-class AgentError(EventBusError):
-    pass
+class ProducerError(EventBusError):
+    """
+    Raised during production of an event.
+    """
+
+
+class ConsumerError(EventBusError):
+    """
+    Raised during consumption of an event
+    """

@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from confluent_kafka import KafkaError
 
 from .brokers import Consumer, DeliveryCallBackT, Producer
-from .exceptions import AgentError, AlreadyRegistered, UnRegisteredEvent
+from .exceptions import ConsumerError, AlreadyRegistered, UnknownEvent
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class EventBus:
         """
         event_fqn = self._to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
-            raise UnRegisteredEvent(
+            raise UnknownEvent(
                 f"Register the event to a topic using `bus.register_event('foo_topic', {event_type})`"
             )
 
@@ -152,18 +152,18 @@ class EventBus:
                     # TODO: Max-number-of-tasks
                     while True:
                         try:
-                            serialized_event = consumer.poll(poll_timeout)
+                            message = consumer.poll(poll_timeout)
 
                             # No message to consume.
-                            if serialized_event is None:
+                            if message is None:
                                 continue
 
-                            if serialized_event.error():
+                            if message.error():
                                 logger.warning(
                                     f"Error consuming event.",
                                     extra={
                                         **log_context,
-                                        **{"error": serialized_event.error()},
+                                        **{"error": message.error()},
                                     },
                                 )
                                 self.sleep(
@@ -174,7 +174,7 @@ class EventBus:
 
                             # Deserialise to the dataclass of the event
                             event_data = json.loads(
-                                serialized_event.value().decode("utf-8")
+                                message.value().decode("utf-8")
                             )
                             event = event_type(**event_data)
 
@@ -184,13 +184,13 @@ class EventBus:
                             except Exception as exc:
                                 logger.exception(
                                     f"Error while processing event. ",
-                                    extra={**log_context, **{"data": serialized_event}},
+                                    extra={**log_context, **{"data": event}},
                                     exc_info=True,
                                 )
                                 success = False
 
                             if success:
-                                consumer.store_offsets(message=serialized_event)
+                                consumer.ack(message=message)
 
                         except KeyboardInterrupt:
                             logger.info(f"Closing agent.", extra=log_context)

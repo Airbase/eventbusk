@@ -1,8 +1,8 @@
 import pytest
 
 from eventbusk.brokers import Consumer, Producer
-from eventbusk.brokers.dummy import DummyBroker, DummyConsumer, DummyProducer
-from eventbusk.brokers.kafka import KafkaConsumer, KafkaProducer
+from eventbusk.brokers.dummy import BrokerURI as DummyBrokerURI, Consumer as DummyConsumer, Producer as DummyProducer
+from eventbusk.brokers.kafka import BrokerURI as KafkaBrokerURI, Consumer as KafkaConsumer, Producer as KafkaProducer
 
 
 # Factories
@@ -37,7 +37,7 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
             assert consumer.broker.sasl
         else:
             assert not consumer.broker.sasl
-        assert consumer.broker.default_props
+        assert consumer.broker.default_config
     elif "dummy" in broker:
         assert isinstance(consumer, DummyConsumer)
     else:
@@ -99,8 +99,6 @@ def test_producer_factory(broker: str) -> None:
 
 # Dummy broker
 # -------------
-
-
 def test_dummy_producer() -> None:
     """
     Test basic dummy producer functionality
@@ -114,7 +112,8 @@ def test_dummy_consumer() -> None:
     Test basic dummy consumer functionality
     """
     consumer = DummyConsumer(broker="dummy://", topic="mytopic", group="mygroup")
-    assert isinstance(consumer.broker, DummyBroker)
+    print(type(consumer.broker), DummyBrokerURI)
+    assert isinstance(consumer.broker, DummyBrokerURI)
     assert consumer.topic == "mytopic"
     assert consumer.group == "mygroup"
 
@@ -124,19 +123,37 @@ def test_dummy_consumer() -> None:
 
 # Kafka broker
 # -------------
-def test_kafka_producer() -> None:
+def test_kafka_producer(mocker, topic="foo", value="lorem ipsum") -> None:
     """
     Test basic kafka producer functionality
     """
+    # Given a Kafka producer that
+    # mocks the underlying confluent producer so it doesn't try to connect
+    cproducer = mocker.Mock()
+    CProducer = mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)
     producer = KafkaProducer(broker="kafka://localhost:9092")
-    producer.produce(topic="foo", value="lorem ipsum")
+
+    # When we produce an event
+    producer.produce(topic=topic, value=value)
+    assert cproducer._produce.called_once_with(topic="foo", value=value)
 
 
-def test_kafka_consumer() -> None:
+def test_kafka_consumer(mocker, message: str="lorem ipsum", timeout:int =0) -> None:
     """
     Test basic kafka consumer functionality
     """
-    consumer = KafkaConsumer(
-        broker="kafka://localhost:9092", topic="mytopic", group="mygroup"
-    )
-    # consumer# .produce(topic="foo", value="lorem ipsum")
+    # Given a Kafka consumer with a mocked underlying Confluent consumer
+    # to avoid making a connection
+    cconsumer = mocker.Mock()
+    cconsumer.poll.return_value = message
+    CConsumer = mocker.patch("eventbusk.brokers.kafka.CConsumer", return_value=cconsumer)
+    with KafkaConsumer(broker="kafka://localhost:9092", topic="mytopic", group="mygroup") as consumer:
+
+        # When a consumer is polled and a message is acknowledge
+        message = consumer.poll(timeout=timeout
+                                )
+        consumer.ack(message=message)
+
+    # Then ensure underlying confluent consumer is correctly called
+    cconsumer.poll.assert_called_once_with(timeout)
+    cconsumer.store_offsets.assert_called_once_with(message=message)

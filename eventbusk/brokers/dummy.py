@@ -30,7 +30,7 @@ class BrokerURI(BaseBrokerURI):
 
     Usage
     ------
-    >>> broker = Broker("dummy://localhost:9092")
+    >>> broker = BrokerURI("dummy://localhost:9092")
     """
 
     @classmethod
@@ -100,5 +100,4 @@ class Producer(BaseProducer):
                 "flush": True,
             },
         )
-        # TODO: call
-        # on_delivery
+        # TODO: call # on_delivery

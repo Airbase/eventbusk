@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from contextlib import ContextDecorator
 from dataclasses import dataclass
 from typing import Callable, Mapping, Union
 
@@ -11,6 +10,7 @@ from confluent_kafka import Producer as CProducer
 from confluent_kafka import cimpl
 
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
+from ..exceptions import ProducerError
 
 # Delivery callback method `on_delivery` has the following type.
 # DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
@@ -20,9 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "BrokerURI" "Consumer",
+    "BrokerURI",
+    "Consumer",
     "Producer",
 ]
+
+ConfigT = dict[str, Union[bool, int, str]]
 
 
 @dataclass
@@ -35,7 +38,7 @@ class BrokerURI(BaseBrokerURI):
 
     Usage
     ------
-    >>> broker = Broker("kafka://user:pass@localhost:9092")
+    >>> broker = BrokerURI("kafka://user:pass@localhost:9092")
     >>> broker.username
 
     """
@@ -91,8 +94,11 @@ class BrokerURI(BaseBrokerURI):
         )
 
     @property
-    def default_props(self) -> Mapping[str, str]:
-        props = {
+    def default_config(self) -> ConfigT:
+        """
+        Default configuration for consumer or producer instances
+        """
+        props: ConfigT = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
         if self.sasl:
@@ -107,7 +113,7 @@ class BrokerURI(BaseBrokerURI):
         return props.copy()
 
 
-class Consumer(ContextDecorator):
+class Consumer(BaseConsumer):
     """
     Kafka consumer as a context manager.
 
@@ -135,15 +141,15 @@ class Consumer(ContextDecorator):
         )
 
     def __enter__(self) -> Consumer:
-        props = self.broker.default_props
-        props.update(
+        config = self.broker.default_config
+        config.update(
             {
                 "group.id": self.group,
                 "auto.offset.reset": "earliest",  # TODO: This will change per agent
                 "enable.auto.offset.store": False,  # TODO: autocommit?
             }
         )
-        self._consumer = CConsumer(props)
+        self._consumer = CConsumer(config)
         self._consumer.subscribe([self.topic])
         return self
 
@@ -153,8 +159,21 @@ class Consumer(ContextDecorator):
         if type and value and traceback:
             logger.exception(f"KafkaConsumer error. [{self}]", exc_info=True)
 
+    def poll(self, timeout: int):
+        """
+        Poll the topic for new messages
+        """
+        print(self._consumer.poll, timeout)
+        return self._consumer.poll(timeout)
 
-class KafkaProducer(BaseProducer):
+    def ack(self, message):
+        """
+        Acknowledge the message
+        """
+        self._consumer.store_offsets(message=message)
+
+
+class Producer(BaseProducer):
     """
     Kafka event producer.
     """
@@ -162,8 +181,8 @@ class KafkaProducer(BaseProducer):
     def __init__(self, broker: str):
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
-        props = self.broker.default_props
-        self._producer = CProducer(props)
+        config = self.broker.default_config
+        self._producer = CProducer(config)
 
     def produce(
         self,
@@ -184,9 +203,23 @@ class KafkaProducer(BaseProducer):
                 "flush": flush,
             },
         )
-        self._producer.poll(0)  # TODO: ?
-        self._producer.produce(
-            topic=topic, value=value, flush=flush, on_delivery=on_delivery
-        )
-        if flush:
-            self._producer.flush()
+        try:
+            self._producer.poll(0)  # TODO: ?
+            self._producer.produce(
+                topic=topic, value=value,  on_delivery=on_delivery
+            )
+            if flush:
+                self._producer.flush()
+
+        except KafkaError as exc:
+            if fail_silently:
+                logger.warning(
+                    "Error producing event.",
+                    extra={
+                        "topic": topic,
+                        "flush": flush
+                    },
+                    exc_info=True,
+                )
+            else:
+                raise ProducerError from exc

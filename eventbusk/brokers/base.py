@@ -6,19 +6,23 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
-from dataclasses import dataclass
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "BaseBrokerURI" "BaseConsumer",
+    "BaseBrokerURI",
+    "BaseConsumer",
     "BaseProducer",
 ]
 
 
 class BaseBrokerURI(ABC):
+    """
+    Base class that defines the interface for all broker URIs
+    """
+
     @classmethod
     @abstractmethod
     def from_uri(cls, uri: str) -> BaseBrokerURI:
@@ -31,8 +35,8 @@ class BaseConsumer(ContextDecorator, ABC):
     """
     Base class for consumers
 
-    All event consumers are exposed as a ContextDecorator, so it can be used
-    via a `with` statement and any connections are automatically closed on exit.
+    All event consumers are exposed as a ContextDecorator, so it can be used via a
+    `with` statement and any connections are automatically closed on exit.
     """
 
     broker: BaseBrokerURI
