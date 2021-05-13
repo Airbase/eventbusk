@@ -78,24 +78,22 @@ def cli() -> None:
 class Worker(cotyledon.Service):
     def __init__(self, worker_id, agent):
         super().__init__(worker_id)
-        print(agent)
         self._shutdown = threading.Event()
-        logger.info("{self.name} init.")
         self.agent = agent
         self.name = agent.fqn
 
     def run(self):
-        logger.info("{self.name} running.")
+        logger.info(f"{self.name} running.")
         self.agent()
         self._shutdown.wait()
 
     def terminate(self):
-        logger.info("{self.name} terminating.")
+        logger.info(f"{self.name} terminating.")
         self._shutdown.set()
         sys.exit(0)
 
     def reload(self):
-        logger.info("{self.name} reloading.")
+        logger.info(f"{self.name} reloading.")
 
 
 @cli.command()
@@ -117,6 +115,5 @@ def worker(app: str) -> None:
     manager = cotyledon.ServiceManager()
     with cwd_in_path():
         for agent in agents:
-            print("==========", agent)
             manager.add(Worker, args=(agent,))
         manager.run()
