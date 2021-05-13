@@ -8,6 +8,7 @@ class Foo(Event):
     """
     Dummy event
     """
+
     first: int
 
 
@@ -16,6 +17,7 @@ class Bar(Event):
     """
     Dummy event
     """
+
     second: int
 
 

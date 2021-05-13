@@ -9,8 +9,8 @@ from confluent_kafka import KafkaError
 from confluent_kafka import Producer as CProducer
 from confluent_kafka import cimpl
 
-from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
 from ..exceptions import ProducerError
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
 
 # Delivery callback method `on_delivery` has the following type.
 # DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]

@@ -14,7 +14,7 @@ from typing import Callable, Type, Union
 from confluent_kafka import KafkaError
 
 from .brokers import Consumer, DeliveryCallBackT, Producer
-from .exceptions import ConsumerError, AlreadyRegistered, UnknownEvent
+from .exceptions import AlreadyRegistered, ConsumerError, UnknownEvent
 
 logger = logging.getLogger(__name__)
 
@@ -130,10 +130,7 @@ class EventBus:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
-                    extra={
-                        "event": event_fqn,
-                        "topic": topic
-                    },
+                    extra={"event": event_fqn, "topic": topic},
                     exc_info=True,
                 )
             else:

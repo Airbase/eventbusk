@@ -3,18 +3,17 @@ Command Line Interface
 """
 from __future__ import annotations
 
-import concurrent.futures
-import cotyledon
 import importlib
 import logging
 import os
 import sys
+import threading
 from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import Generator, Optional
-import threading
 
 import click
+import cotyledon
 
 from .bus import EventBus
 
@@ -76,7 +75,6 @@ def cli() -> None:
     """Main entry point."""
 
 
-
 class Worker(cotyledon.Service):
     def __init__(self, worker_id, agent):
         super().__init__(worker_id)
@@ -116,15 +114,9 @@ def worker(app: str) -> None:
     num_workers = len(agents)
     logger.info(f"Found {num_workers} agents.")
 
-    # with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-    #     with cwd_in_path():
-    #         futures = [executor.submit(agent) for agent in agents]
-    #         for future in concurrent.futures.as_completed(futures):
-    #             future.result()
-
     manager = cotyledon.ServiceManager()
     with cwd_in_path():
         for agent in agents:
             print("==========", agent)
-            manager.add(Worker, args=(agent, ))
+            manager.add(Worker, args=(agent,))
         manager.run()

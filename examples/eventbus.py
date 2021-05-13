@@ -1,12 +1,14 @@
 import logging
 from dataclasses import dataclass
+
 import daiquiri
+
 daiquiri.setup(level=logging.INFO)
 
 logger = daiquiri.getLogger(__name__)
 
 
-from eventbusk import EventBus, Event
+from eventbusk import Event, EventBus
 
 bus = EventBus(broker="kafka://localhost:9092")
 
