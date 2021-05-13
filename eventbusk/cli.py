@@ -4,6 +4,7 @@ Command Line Interface
 from __future__ import annotations
 
 import concurrent.futures
+import cotyledon
 import importlib
 import logging
 import os
@@ -11,6 +12,7 @@ import sys
 from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import Generator, Optional
+import threading
 
 import click
 
@@ -74,6 +76,30 @@ def cli() -> None:
     """Main entry point."""
 
 
+
+class Worker(cotyledon.Service):
+    def __init__(self, worker_id, agent):
+        super().__init__(worker_id)
+        print(agent)
+        self._shutdown = threading.Event()
+        logger.info("{self.name} init.")
+        self.agent = agent
+        self.name = agent.fqn
+
+    def run(self):
+        logger.info("{self.name} running.")
+        self.agent()
+        self._shutdown.wait()
+
+    def terminate(self):
+        logger.info("{self.name} terminating.")
+        self._shutdown.set()
+        sys.exit(0)
+
+    def reload(self):
+        logger.info("{self.name} reloading.")
+
+
 @cli.command()
 @click.option("--app", "-A", help="Path to EventBus instance. eg. 'mymodule:app'")
 def worker(app: str) -> None:
@@ -89,8 +115,16 @@ def worker(app: str) -> None:
 
     num_workers = len(agents)
     logger.info(f"Found {num_workers} agents.")
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-        with cwd_in_path():
-            futures = [executor.submit(agent) for agent in agents]
-            for future in concurrent.futures.as_completed(futures):
-                future.result()
+
+    # with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+    #     with cwd_in_path():
+    #         futures = [executor.submit(agent) for agent in agents]
+    #         for future in concurrent.futures.as_completed(futures):
+    #             future.result()
+
+    manager = cotyledon.ServiceManager()
+    with cwd_in_path():
+        for agent in agents:
+            print("==========", agent)
+            manager.add(Worker, args=(agent, ))
+        manager.run()

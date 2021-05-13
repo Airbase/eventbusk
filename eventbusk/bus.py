@@ -115,7 +115,9 @@ class EventBus:
         """
         Send an event on the bus.
         """
+
         event_fqn = self._to_fqn(event.__class__)
+        # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
 
         data = json.dumps(asdict(event)).encode("utf-8")
@@ -231,8 +233,8 @@ class EventBus:
                             break
 
             # Add to registry
+            wrapper.fqn = agent_fqn
             self._agents.add(wrapper)
-
             return wrapper
 
         return _outer
