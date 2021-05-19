@@ -50,16 +50,22 @@ def test_bus_send(mocker) -> None:
     producer.produce.assert_has_calls(
         [
             mocker.call(
-                topic="first_topic", value=b'{"first": 1}', on_delivery=on_delivery
+                topic="first_topic",
+                value=b'{"first": 1}',
+                flush=True,
+                on_delivery=on_delivery,
             ),
             mocker.call(
-                topic="second_topic", value=b'{"second": 1}', on_delivery=on_delivery
+                topic="second_topic",
+                value=b'{"second": 1}',
+                flush=True,
+                on_delivery=on_delivery,
             ),
         ]
     )
 
 
-def test_bus_agent(mocker):
+def test_bus_receiver(mocker):
     """
     Test basic consumer
     """
@@ -70,15 +76,15 @@ def test_bus_agent(mocker):
     bus.register_event("first_topic", Foo)
     bus.register_event("second_topic", Bar)
 
-    # When consumer agents are linked to certain event types.
-    @bus.agent(event_type=Foo)
+    # When consumer receivers are linked to certain event types.
+    @bus.receive(event_type=Foo)
     def foo_processor(event):
         pass
 
-    @bus.agent(event_type=Bar)
+    @bus.receive(event_type=Bar)
     def bar_processor(event):
         pass
 
-    # Then ensure agents are correctly registered
-    assert foo_processor in bus.agents
-    assert bar_processor in bus.agents
+    # Then ensure receivers are correctly registered
+    assert foo_processor in bus.receivers
+    assert bar_processor in bus.receivers

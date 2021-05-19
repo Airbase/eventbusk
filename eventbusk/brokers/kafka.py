@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Mapping, Union
+from typing import Union
 
 from confluent_kafka import Consumer as CConsumer
 from confluent_kafka import KafkaError
@@ -51,6 +51,9 @@ class BrokerURI(BaseBrokerURI):
 
     @classmethod
     def from_uri(cls, uri: str) -> BrokerURI:
+        """
+        Return an instance from a string URI
+        """
         invalid_format = ValueError(
             "Broker URI(without SASL) should be of the format 'kafka://host:port' "
             "or 'kafkas://user:pass@host:port'"
@@ -130,7 +133,7 @@ class Consumer(BaseConsumer):
         self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
         self.group = group
-        # self._consumer: CConsumer = None
+        self._consumer: CConsumer = None
 
     def __repr__(self) -> str:
         return (
@@ -145,7 +148,7 @@ class Consumer(BaseConsumer):
         config.update(
             {
                 "group.id": self.group,
-                "auto.offset.reset": "earliest",  # TODO: This will change per agent
+                "auto.offset.reset": "earliest",  # TODO: This will change per receiver
                 "enable.auto.offset.store": False,  # TODO: autocommit?
             }
         )
@@ -153,11 +156,17 @@ class Consumer(BaseConsumer):
         self._consumer.subscribe([self.topic])
         return self
 
-    def __exit__(self, type, value, traceback) -> None:
+    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
         self._consumer.close()
 
-        if type and value and traceback:
-            logger.exception(f"KafkaConsumer error. [{self}]", exc_info=True)
+        if exc_type and exc_value and exc_traceback:
+            logger.warning(
+                "Kafka consumer error.",
+                exc_info=True,
+                extra=dict(
+                    exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback
+                ),
+            )
 
     def poll(self, timeout: int):
         """
@@ -183,7 +192,7 @@ class Producer(BaseProducer):
         config = self.broker.default_config
         self._producer = CProducer(config)
 
-    def produce(
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: str,
@@ -213,7 +222,8 @@ class Producer(BaseProducer):
                 logger.warning(
                     "Error producing event.",
                     extra={"topic": topic, "flush": flush},
-                    exc_info=True,
+                    # Cannot add exc_info=True because of
+                    # AttributeError: 'cimpl.KafkaError' object has no attribute '__traceback__'
                 )
             else:
                 raise ProducerError from exc

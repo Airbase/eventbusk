@@ -27,8 +27,8 @@ class Foo(Event):
 # register the event to a single topic
 bus.register_event("topic_foo", Foo)
 
-# Define an agent that receives that event
-@bus.agent(event_type=Foo)
+# Define an method that receives that event
+@bus.receive(event_type=Foo)
 def process_a(event):
     logger.info(f"Foo: {event}")
 

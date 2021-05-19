@@ -76,15 +76,15 @@ def cli() -> None:
 
 
 class Worker(cotyledon.Service):
-    def __init__(self, worker_id, agent):
+    def __init__(self, worker_id, receiver):
         super().__init__(worker_id)
         self._shutdown = threading.Event()
-        self.agent = agent
-        self.name = agent.fqn
+        self.receiver = receiver
+        self.name = receiver.fqn
 
     def run(self):
         logger.info(f"{self.name} running.")
-        self.agent()
+        self.receiver()
         self._shutdown.wait()
 
     def terminate(self):
@@ -104,16 +104,16 @@ def worker(app: str) -> None:
     """
     bus = find_app(app)
 
-    agents = bus.agents
-    if not agents:
-        logger.error("No registered agents to run.")
+    receivers = bus.receivers
+    if not receivers:
+        logger.error("No registered receivers to run.")
         return
 
-    num_workers = len(agents)
-    logger.info(f"Found {num_workers} agents.")
+    num_workers = len(receivers)
+    logger.info(f"Found {num_workers} receivers.")
 
     manager = cotyledon.ServiceManager()
     with cwd_in_path():
-        for agent in agents:
-            manager.add(Worker, args=(agent,))
+        for receiver in receivers:
+            manager.add(Worker, args=(receiver,))
         manager.run()

@@ -37,11 +37,11 @@ bus.register_event("topic_foo", Foo)
 bus.register_event("topic_bar", Bar)
 
 # Consume an event
-@bus.agent(event_type=Foo)
+@bus.receive(event_type=Foo)
 def process_a(event):
     logger.info(f"Foo: {event}")
 
 
-@bus.agent(event_type=Bar)
+@bus.receive(event_type=Bar)
 def process_b(event):
     logger.info(f"Bar: {event}")

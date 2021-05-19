@@ -34,8 +34,8 @@ class Event(ABC):
 
 
 EventT = Type[Event]
-AgentT = Callable[[Event], None]
-AgentWrappedT = Callable[[], None]
+ReceiverT = Callable[[Event], None]
+ReceiverWrappedT = Callable[[], None]
 
 
 class EventBus:
@@ -61,7 +61,7 @@ class EventBus:
     bus.send(event)
 
     # Consume an event
-    @bus.agent(event_type=MyEvent)
+    @bus.receive(event_type=MyEvent)
     def process(event):
         ...
     """
@@ -79,12 +79,12 @@ class EventBus:
         # the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._agents: set[AgentWrappedT] = set()
+        self._receivers: set[ReceiverWrappedT] = set()
 
     @staticmethod
-    def _to_fqn(event_type: Union[EventT, AgentT]) -> str:
+    def _to_fqn(event_type: Union[EventT, ReceiverT]) -> str:
         """
-        Returns 'fully qualified name' of an event class or an agent, to identify them
+        Returns 'fully qualified name' of an event class or an receiver, to identify them
         uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
@@ -137,18 +137,18 @@ class EventBus:
                 raise exc
 
     @property
-    def agents(self) -> set[AgentWrappedT]:
+    def receivers(self) -> set[ReceiverWrappedT]:
         """
-        Returns a set of agents(consumers) of events.
+        Returns a set of receivers(consumers) of events.
         """
-        return self._agents
+        return self._receivers
 
     # TODO: add group parameter?
-    def agent(self, event_type: EventT, poll_timeout: int = 1):
+    def receive(self, event_type: EventT, poll_timeout: int = 1):
         """
-        Decorator to convert a function into an agent.
+        Decorator to convert a function into an receiver.
 
-        An agent is a simple function that consumes a specific event on the event bus.
+        An receiver is a simple function that consumes a specific event on the event bus.
         """
         event_fqn = self._to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
@@ -157,13 +157,13 @@ class EventBus:
                 f"`bus.register_event('foo_topic', {event_type})`"
             )
 
-        def _outer(func: AgentT) -> AgentWrappedT:
+        def _outer(func: ReceiverT) -> ReceiverT:
             # TODO: Ensure group name does not clash
             group = self._to_fqn(func)
-            agent_fqn = self._to_fqn(func)
+            receiver_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
             log_context = dict(
-                event=event_fqn, agent=agent_fqn, topic=topic, group=group
+                event=event_fqn, receiver=receiver_fqn, topic=topic, group=group
             )
 
             @wraps(func)
@@ -226,12 +226,12 @@ class EventBus:
                                 consumer.ack(message=message)
 
                         except KeyboardInterrupt:
-                            logger.info("Closing agent.", extra=log_context)
+                            logger.info("Closing receiver.", extra=log_context)
                             break
 
             # Add to registry
-            wrapper.fqn = agent_fqn
-            self._agents.add(wrapper)
+            wrapper.fqn = receiver_fqn
+            self._receivers.add(wrapper)
             return wrapper
 
         return _outer

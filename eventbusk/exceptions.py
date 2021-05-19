@@ -19,7 +19,7 @@ class EventBusError(Exception):
 
 class UnknownEvent(EventBusError):
     """
-    Raised when an agent is created for an event the bus does not recognize.
+    Raised when an receiver is created for an event the bus does not recognize.
     """
 
 
