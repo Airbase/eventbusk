@@ -198,7 +198,7 @@ class Producer(BaseProducer):
         value: str,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
-        fail_silently: bool = False,
+         ffail_silently: bool = False,
     ) -> None:
         """
         Only logs the message, does not deliver.

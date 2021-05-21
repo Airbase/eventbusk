@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import threading
+import django
 from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import Generator, Optional
@@ -103,7 +104,7 @@ def worker(app: str) -> None:
     Start consumer workers
     """
     bus = find_app(app)
-
+    django.setup()
     receivers = bus.receivers
     if not receivers:
         logger.error("No registered receivers to run.")
