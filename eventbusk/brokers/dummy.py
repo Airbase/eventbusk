@@ -99,7 +99,7 @@ class Producer(BaseProducer):
             "Producing message.",
             extra={
                 "topic": topic,
-                "message": value,
+                "value": value,
                 "flush": True,
             },
         )
