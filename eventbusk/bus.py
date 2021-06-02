@@ -162,6 +162,7 @@ class EventBus:
             group = self._to_fqn(func)
             receiver_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
+            logger.info("Listening to topic " + str(topic))
             log_context = dict(
                 event=event_fqn, receiver=receiver_fqn, topic=topic, group=group
             )
@@ -175,12 +176,14 @@ class EventBus:
                             try:
                                 message = consumer.poll(poll_timeout)
                             except ConsumerError:
+                                logger.exception(ConsumerError)
                                 self.sleep(
                                     seconds=1,
                                     message=(
                                         "Error on polling, " "topic might be blocked."
                                     ),
                                 )
+
                                 continue
 
                             # No message to consume.
