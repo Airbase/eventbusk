@@ -162,7 +162,6 @@ class EventBus:
             group = self._to_fqn(func)
             receiver_fqn = self._to_fqn(func)
             topic = self._event_to_topic[event_fqn]
-            logger.info("Listening to topic " + str(topic))
             log_context = dict(
                 event=event_fqn, receiver=receiver_fqn, topic=topic, group=group
             )
@@ -176,14 +175,9 @@ class EventBus:
                             try:
                                 message = consumer.poll(poll_timeout)
                             except ConsumerError:
-                                logger.exception(ConsumerError)
-                                self.sleep(
-                                    seconds=1,
-                                    message=(
-                                        "Error on polling, " "topic might be blocked."
-                                    ),
-                                )
-
+                                msg = "Error while consuming message. Topic might be blocked"
+                                logger.exception(err_msg, exc_info=True, extra=log_context)
+                                self.sleep(seconds=1, message=msg)
                                 continue
 
                             # No message to consume.
@@ -191,20 +185,15 @@ class EventBus:
                                 continue
 
                             if message.error():
+                                msg = "Error while consuming message. Topic might be blocked"
                                 logger.warning(
-                                    "Error consuming event.",
+                                    msg,
                                     extra={
                                         **log_context,
                                         **{"error": message.error()},
                                     },
                                 )
-                                self.sleep(
-                                    seconds=1,
-                                    message=(
-                                        "Error on last consumption, "
-                                        "topic might be blocked."
-                                    ),
-                                )
+                                self.sleep(seconds=1, message=msg)
                                 continue
 
                             # Deserialise to the dataclass of the event

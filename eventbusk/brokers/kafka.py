@@ -149,7 +149,7 @@ class Consumer(BaseConsumer):
             {
                 "group.id": self.group,
                 "auto.offset.reset": "latest",  # TODO: This will change per receiver
-                "enable.auto.offset.store": False,  # TODO: autocommit?
+                "enable.auto.offset.store": False,
             }
         )
         self._consumer = CConsumer(config)
@@ -200,10 +200,10 @@ class Producer(BaseProducer):
         value: str,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
-         ffail_silently: bool = False,
+        fail_silently: bool = False,
     ) -> None:
         """
-        Only logs the message, does not deliver.
+        Sends the message to a Kafka topic
         """
         logger.info(
             "Producing message.",
