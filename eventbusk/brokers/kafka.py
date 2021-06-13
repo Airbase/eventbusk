@@ -203,7 +203,7 @@ class Producer(BaseProducer):
     def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
-        value: str,
+        value: MessageT,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

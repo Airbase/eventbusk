@@ -10,10 +10,10 @@ import sys
 import threading
 from contextlib import contextmanager, suppress
 from types import ModuleType
-from typing import Generator, Optional
+from typing import Generator, Optional, Callable
 
 import click
-import cotyledon
+import cotyledon  # type: ignore
 
 from .bus import EventBus
 
@@ -75,24 +75,24 @@ def cli() -> None:
     """Main entry point."""
 
 
-class Worker(cotyledon.Service):
-    def __init__(self, worker_id, receiver):
+class Worker(cotyledon.Service):  # type: ignore
+    def __init__(self, worker_id: int, receiver: Callable[..., None]) -> None:
         super().__init__(worker_id)
         self._shutdown = threading.Event()
         self.receiver = receiver
-        self.name = receiver.fqn
+        self.name = EventBus.to_fqn(receiver)
 
-    def run(self):
+    def run(self) -> None:
         logger.info(f"{self.name} running.")
         self.receiver()
         self._shutdown.wait()
 
-    def terminate(self):
+    def terminate(self) -> None:
         logger.info(f"{self.name} terminating.")
         self._shutdown.set()
         sys.exit(0)
 
-    def reload(self):
+    def reload(self) -> None:
         logger.info(f"{self.name} reloading.")
 
 

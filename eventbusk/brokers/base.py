@@ -22,7 +22,7 @@ __all__ = [
 # Type hints
 # callback method `on_delivery` on the producer
 DeliveryCallBackT = Callable[..., None]
-MessageT = Union[str, cimpl.Message]
+MessageT = Union[str, bytes, cimpl.Message]
 
 
 class BaseBrokerURI(ABC):
@@ -37,6 +37,8 @@ class BaseBrokerURI(ABC):
         Return a instance created from a URI
         """
 
+from types import TracebackType
+from typing import Optional, Type, Union
 
 class BaseConsumer(ContextDecorator, ABC):
     """
@@ -57,6 +59,17 @@ class BaseConsumer(ContextDecorator, ABC):
             f"topic={self.topic}, "
             f"group='{self.group}')>"
         )
+
+    def __enter__(self) -> BaseConsumer:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_traceback: Optional[TracebackType],
+    ) -> None:
+        pass
 
     @abstractmethod
     def poll(self, timeout: int) -> Optional[MessageT]:  # type: ignore
@@ -84,10 +97,10 @@ class BaseProducer(ABC):
         super().__init__()
 
     @abstractmethod
-    def produce(  # pylint: disable=too-many-arguments
+    def produce(  # type: ignore # pylint: disable=too-many-arguments
         self,
         topic: str,
-        value: str,
+        value: MessageT,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

@@ -36,7 +36,7 @@ multi_line_output = 3
 
 [tool.mypy]
 python_version = "3.9"
-files = "eventbusk/"
+files = ["eventbusk"]
 allow_redefinition = false
 allow_untyped_globals = false
 check_untyped_defs = true

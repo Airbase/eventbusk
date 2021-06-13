@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT, MessageT
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +64,14 @@ class Consumer(BaseConsumer):
         self.topic = topic
         self.group = group
 
-    def poll(self, timeout: int = 1) -> Optional[str]:
+    def poll(self, timeout: int = 1) -> Optional[MessageT]:
         """
         Sleeps for the required timeout, and returns no message.
         """
         time.sleep(timeout)
         return None
 
-    def ack(self, message: str) -> None:
+    def ack(self, message: MessageT) -> None:
         """
         Acknowledge event
         """
@@ -89,7 +89,7 @@ class Producer(BaseProducer):
     def produce(
         self,
         topic: str,
-        value: str,
+        value: MessageT,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

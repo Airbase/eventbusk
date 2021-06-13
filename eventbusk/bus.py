@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from functools import wraps
 from typing import Callable, Type, Union
 
-from confluent_kafka import KafkaError
+from confluent_kafka import KafkaError # type: ignore
 
 from .brokers import Consumer, DeliveryCallBackT, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, UnknownEvent
@@ -36,6 +36,7 @@ class Event(ABC):
 EventT = Type[Event]
 ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
+ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
 
 
 class EventBus:
@@ -82,7 +83,7 @@ class EventBus:
         self._receivers: set[ReceiverWrappedT] = set()
 
     @staticmethod
-    def _to_fqn(event_type: Union[EventT, ReceiverT]) -> str:
+    def to_fqn(event_type: Union[EventT, ReceiverT]) -> str:
         """
         Returns 'fully qualified name' of an event class or an receiver, to identify
         them uniquely.
@@ -101,7 +102,7 @@ class EventBus:
             )
 
         # Create a bidict for 'topic' -> 'mymodule.MyEvent'
-        class_fqn = self._to_fqn(event_type)
+        class_fqn = self.to_fqn(event_type)
         self._topic_to_event[topic] = class_fqn
         self._event_to_topic[class_fqn] = topic
 
@@ -116,7 +117,7 @@ class EventBus:
         Send an event on the bus.
         """
 
-        event_fqn = self._to_fqn(event.__class__)
+        event_fqn = self.to_fqn(event.__class__)
         # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
 
@@ -144,24 +145,24 @@ class EventBus:
         return self._receivers
 
     # TODO: add group parameter?
-    def receive(self, event_type: EventT, poll_timeout: int = 1):
+    def receive(self, event_type: EventT, poll_timeout: int = 1) -> ReceivedOuterT:
         """
         Decorator to convert a function into an receiver.
 
         An receiver is a simple function that consumes a specific event on the event
         bus.
         """
-        event_fqn = self._to_fqn(event_type)
+        event_fqn = self.to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
             raise UnknownEvent(
                 "Register the event to a topic using "
                 f"`bus.register_event('foo_topic', {event_type})`"
             )
 
-        def _outer(func: ReceiverT) -> ReceiverT:
+        def _outer(func: ReceiverT) -> ReceiverWrappedT:
             # TODO: Ensure group name does not clash
-            group = self._to_fqn(func)
-            receiver_fqn = self._to_fqn(func)
+            group = self.to_fqn(func)
+            receiver_fqn = self.to_fqn(func)
             topic = self._event_to_topic[event_fqn]
             log_context = dict(
                 event=event_fqn, receiver=receiver_fqn, topic=topic, group=group
@@ -188,7 +189,11 @@ class EventBus:
                             if message is None:
                                 continue
 
-                            if message.error():
+                            # TODO: Remove kafka Message dependency from here.
+                            # How do we ack generic messages?
+                            #  Item "str" of "Union[str, Any, bytes]" has no attribute "error
+                            msg_error =  message.error()  # type: ignore
+                            if msg_error:
                                 msg = (
                                     "Error while consuming message. "
                                     "Topic might be blocked"
@@ -197,15 +202,20 @@ class EventBus:
                                     msg,
                                     extra={
                                         **log_context,
-                                        **{"error": message.error()},
+                                        **{"error": msg_error},
                                     },
                                 )
                                 self.sleep(seconds=1, message=msg)
                                 continue
 
                             # Deserialise to the dataclass of the event
-                            event_data = json.loads(message.value().decode("utf-8"))
-                            event = event_type(**event_data)
+                            # TODO: Remove kafka Message dependency from here.
+                            #  Item "str" of "Union[str, Any, bytes]" has no attribute "value
+                            event_data = json.loads(message.value().decode("utf-8")) # type: ignore
+
+                            # TODO: Fix following
+                            # Too many arguments for "Event"  [call-arg]
+                            event = event_type(**event_data)  # type: ignore
 
                             try:
                                 func(event)
@@ -222,14 +232,15 @@ class EventBus:
                                 success = False
 
                             if success:
-                                consumer.ack(message=message)
+                                # TODO: Fix following
+                                #  Argument "message" to "ack" of "BaseConsumer" has incompatible type "Union[str, Any, bytes]"; expected "str"  [arg-type]
+                                consumer.ack(message=message)  # type: ignore
 
                         except KeyboardInterrupt:
                             logger.info("Closing receiver.", extra=log_context)
                             break
 
             # Add to registry
-            wrapper.fqn = receiver_fqn
             self._receivers.add(wrapper)
             return wrapper
 
