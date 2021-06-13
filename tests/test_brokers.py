@@ -85,7 +85,11 @@ def test_consumer_factory_bad_broker(broker: str, topic: str, group: str) -> Non
 
 @pytest.mark.parametrize(
     "broker",
-    ["kafka://localhost:9092", "kafkas://username:password@localhost:9092", "dummy://"],
+    [
+        "kafka://localhost:9092",
+        "kafkas://username:password@localhost:9092",
+        "dummy://",
+    ],
 )
 def test_producer_factory(broker: str) -> None:
     """

@@ -27,12 +27,7 @@ build-backend = "poetry.core.masonry.api"
 eventbusk = "eventbusk.cli:cli"
 
 [tool.isort]
-combine_as_imports = true
-force_grid_wrap = 0
-include_trailing_comma = true
-known_third_party = []
-line_length = 88
-multi_line_output = 3
+profile = "black"
 
 [tool.mypy]
 python_version = "3.9"
