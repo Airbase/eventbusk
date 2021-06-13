@@ -1,3 +1,8 @@
+"""
+Test broker implementation
+"""
+from __future__ import annotations
+
 from typing import Any
 
 import pytest
@@ -25,6 +30,9 @@ from eventbusk.exceptions import ProducerError
     ],
 )
 def test_consumer_factory(broker: str, topic: str, group: str) -> None:
+    """
+    Test consumer factory returns the correct instance for a given broker URI.
+    """
     # Given broker uri, and optionally topic and group
 
     # When a consumer is instantiated with the broker and dummy topic, group

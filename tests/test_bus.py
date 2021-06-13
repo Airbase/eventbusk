@@ -1,8 +1,16 @@
+"""
+Test EventBus implementation
+"""
+from __future__ import annotations
+
+import logging
 from dataclasses import dataclass
 
 from pytest_mock import MockerFixture
 
 from eventbusk import Event, EventBus
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,6 +51,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
         """
         Do nothing delivery handler
         """
+        logger.info(error, event)
 
     bus.send(foo_event, on_delivery)
     bus.send(bar_event, on_delivery)
@@ -67,7 +76,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
     )
 
 
-def test_bus_receiver(mocker: MockerFixture) -> None:
+def test_bus_receive() -> None:
     """
     Test basic consumer
     """
@@ -81,11 +90,11 @@ def test_bus_receiver(mocker: MockerFixture) -> None:
     # When consumer receivers are linked to certain event types.
     @bus.receive(event_type=Foo)
     def foo_processor(event: Event) -> None:
-        pass
+        logger.info(event)
 
     @bus.receive(event_type=Bar)
     def bar_processor(event: Event) -> None:
-        pass
+        logger.info(event)
 
     # Then ensure receivers are correctly registered
     assert foo_processor in bus.receivers

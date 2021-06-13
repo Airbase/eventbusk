@@ -72,7 +72,6 @@ class Consumer(BaseConsumer):
         Sleeps for the required timeout, and returns no message.
         """
         time.sleep(timeout)
-        return None
 
     def ack(self, message: MessageT) -> None:
         """
@@ -89,7 +88,7 @@ class Producer(BaseProducer):
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
 
-    def produce(
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: MessageT,

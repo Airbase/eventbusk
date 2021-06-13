@@ -45,12 +45,12 @@ repos:
     hooks:
     -   id: flake8
 
-# -   repo: https://github.com/pycqa/pylint
-#     rev: v2.8.3
-#     hooks:
-#     -   id: pylint
-#         args: [--extension-pkg-whitelist=confluent_kafka]
-#         additional_dependencies: ["confluent_kafka"]
+-   repo: https://github.com/pycqa/pylint
+    rev: v2.8.3
+    hooks:
+    -   id: pylint
+        args: [--extension-pkg-whitelist=confluent_kafka]
+        additional_dependencies: ["click", "confluent_kafka", "cotyledon", "pytest", "pytest_mock"]
 
 # -   repo: https://github.com/pre-commit/mirrors-mypy
 #     rev: v0.902
@@ -59,3 +59,12 @@ repos:
 #         args: ["--config-file=pyproject.toml"]
 #         files: ^eventbusk/
 #         additional_dependencies: ["types-click"]
+
+-   repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest-check
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true

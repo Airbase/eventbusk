@@ -19,25 +19,39 @@ bus = EventBus(broker="kafka://localhost:9092")
 
 
 @dataclass
-class Foo(Event):
-    foo: int
+class Fooey(Event):
+    """
+    First type of event
+    """
+
+    foo_val: int
 
 
 @dataclass
-class Bar(Event):
-    bar: str
+class Barzy(Event):
+    """
+    Second type of event
+    """
+
+    bar_val: str
 
 
-bus.register_event("topic_foo", Foo)
-bus.register_event("topic_bar", Bar)
+bus.register_event("topic_foo", Fooey)
+bus.register_event("topic_bar", Barzy)
 
 
 # Consume an event
-@bus.receive(event_type=Foo)
+@bus.receive(event_type=Fooey)
 def process_a(event: Event) -> None:
+    """
+    Consumer of Foeey events
+    """
     logger.info(f"Foo: {event}")
 
 
-@bus.receive(event_type=Bar)
+@bus.receive(event_type=Barzy)
 def process_b(event: Event) -> None:
+    """
+    Consumer of Barzy events
+    """
     logger.info(f"Bar: {event}")
