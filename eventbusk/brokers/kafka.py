@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Union, Optional, Type
 from types import TracebackType
+from typing import Optional, Type, Union
 
-from confluent_kafka import Consumer as CConsumer
+from confluent_kafka import Consumer as CConsumer  # type: ignore
 from confluent_kafka import KafkaError
 from confluent_kafka import Producer as CProducer
 from confluent_kafka import cimpl
@@ -128,6 +128,7 @@ class Consumer(BaseConsumer):
     >>> with KafkaConsumer(broker, topic, group) as consumer:
            ...
     """
+
     broker: BrokerURI
 
     def __init__(self, broker: str, topic: str, group: str):
@@ -158,9 +159,12 @@ class Consumer(BaseConsumer):
         self._consumer.subscribe([self.topic])
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]],
-             exc_value: Optional[BaseException],
-             exc_traceback: Optional[TracebackType]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_traceback: Optional[TracebackType],
+    ) -> None:
         self._consumer.close()
 
         if exc_type and exc_value and exc_traceback:

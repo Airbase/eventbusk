@@ -73,10 +73,6 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
-# [[tool.mypy.overrides]]
-# module = ["mypy-confluent_kafka.*"]
-# ignore_missing_imports = true
-
 [tool.pylint.master]
 bad-functions = ["print"]
 jobs = 1

@@ -7,7 +7,8 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
 from typing import Callable, Optional, Union
-from confluent_kafka import cimpl
+
+from confluent_kafka import cimpl  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class BaseConsumer(ContextDecorator, ABC):
         )
 
     @abstractmethod
-    def poll(self, timeout: int) -> Optional[MessageT]:
+    def poll(self, timeout: int) -> Optional[MessageT]:  # type: ignore
         """
         Poll for a specified time in seconds for new messages
         """
