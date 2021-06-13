@@ -12,14 +12,10 @@ To send an event on the bus you can open a separate python shell
 import logging
 from dataclasses import dataclass
 
-import daiquiri
-
-daiquiri.setup(level=logging.INFO)
-
-logger = daiquiri.getLogger(__name__)
-
 from eventbusk import Event, EventBus
 
+
+logger = logging.getLogger(__name__)
 bus = EventBus(broker="kafka://localhost:9092")
 
 

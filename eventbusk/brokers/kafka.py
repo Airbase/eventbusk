@@ -153,9 +153,7 @@ class Consumer(BaseConsumer):
             }
         )
         self._consumer = CConsumer(config)
-        logger.info("Trying to subscribe")
         self._consumer.subscribe([self.topic])
-        logger.info("Subscribed successfully")
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
