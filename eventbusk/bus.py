@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from functools import wraps
 from typing import Callable, Type, Union
 
-from confluent_kafka import KafkaError # type: ignore
+from confluent_kafka import KafkaError  # type: ignore
 
 from .brokers import Consumer, DeliveryCallBackT, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, UnknownEvent
@@ -192,7 +192,7 @@ class EventBus:
                             # TODO: Remove kafka Message dependency from here.
                             # How do we ack generic messages?
                             #  Item "str" of "Union[str, Any, bytes]" has no attribute "error
-                            msg_error =  message.error()  # type: ignore
+                            msg_error = message.error()  # type: ignore
                             if msg_error:
                                 msg = (
                                     "Error while consuming message. "
@@ -211,7 +211,7 @@ class EventBus:
                             # Deserialise to the dataclass of the event
                             # TODO: Remove kafka Message dependency from here.
                             #  Item "str" of "Union[str, Any, bytes]" has no attribute "value
-                            event_data = json.loads(message.value().decode("utf-8")) # type: ignore
+                            event_data = json.loads(message.value().decode("utf-8"))  # type: ignore
 
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]

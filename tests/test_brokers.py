@@ -1,5 +1,8 @@
+from typing import Any
+
 import pytest
-from confluent_kafka import KafkaError
+from confluent_kafka import KafkaError  # type: ignore
+from pytest_mock import MockerFixture
 
 from eventbusk.brokers import Consumer, Producer
 from eventbusk.brokers.dummy import BrokerURI as DummyBrokerURI
@@ -27,13 +30,15 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
     # When a consumer is instantiated with the broker and dummy topic, group
     consumer = Consumer(broker=broker, topic=topic, group=group)
 
-    # Then check username/passsword is correctly set if supported
-    if "username" in broker:
-        assert consumer.broker.username == "username"
-    if "password" in broker:
-        assert consumer.broker.password == "password"
-
     if "kafka" in broker:
+        assert isinstance(consumer, KafkaConsumer)
+    if isinstance(consumer, KafkaConsumer):
+        # Then check username/passsword is correctly set if supported
+        if "username" in broker:
+            assert consumer.broker.username == "username"
+        if "password" in broker:
+            assert consumer.broker.password == "password"
+
         assert repr(consumer)
         assert isinstance(consumer, KafkaConsumer)
         assert consumer.broker.host == "localhost"
@@ -45,11 +50,10 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
         else:
             assert not consumer.broker.sasl
         assert consumer.broker.default_config
-    elif "dummy" in broker:
-        assert repr(consumer)
+
+    if "dummy" in broker:
         assert isinstance(consumer, DummyConsumer)
-    else:
-        raise ValueError("Unsupported broker.")
+        assert repr(consumer)
 
 
 @pytest.mark.parametrize(
@@ -156,7 +160,9 @@ def test_kafka_broker_uri() -> None:
     assert broker.port == 9092
 
 
-def test_kafka_producer(mocker, topic="foo", value="lorem ipsum") -> None:
+def test_kafka_producer(
+    mocker: MockerFixture, topic: str = "foo", value: str = "lorem ipsum"
+) -> None:
     """
     Test producing to kafka
     """
@@ -182,14 +188,16 @@ def test_kafka_producer(mocker, topic="foo", value="lorem ipsum") -> None:
     cproducer.flush.assert_called_once()
 
 
-def test_kafka_producer_error(mocker, topic="foo", value="lorem ipsum") -> None:
+def test_kafka_producer_error(
+    mocker: MockerFixture, topic: str = "foo", value: str = "lorem ipsum"
+) -> None:
     """
     Test kafka producer error handling
     """
     # Given a producer that errors out
     cproducer = mocker.Mock()
 
-    def raise_exc(*args, **kwargs):
+    def raise_exc(*args: Any, **kwargs: Any) -> None:
         raise KafkaError(KafkaError.BROKER_NOT_AVAILABLE)
 
     cproducer.produce.side_effect = raise_exc
@@ -208,7 +216,9 @@ def test_kafka_producer_error(mocker, topic="foo", value="lorem ipsum") -> None:
     cproducer.flush.assert_not_called()
 
 
-def test_kafka_consumer(mocker, message: str = "lorem ipsum", timeout: int = 0) -> None:
+def test_kafka_consumer(
+    mocker: MockerFixture, message: str = "lorem ipsum", timeout: int = 0
+) -> None:
     """
     Test basic kafka consumer functionality
     """
@@ -225,9 +235,9 @@ def test_kafka_consumer(mocker, message: str = "lorem ipsum", timeout: int = 0) 
         assert repr(consumer)
 
         # When a consumer is polled and a message is acknowledge
-        message = consumer.poll(timeout=timeout)
-        consumer.ack(message=message)
+        msg = consumer.poll(timeout=timeout)
+        consumer.ack(message=msg)
 
     # Then ensure underlying confluent consumer is correctly called
     cconsumer.poll.assert_called_once_with(timeout)
-    cconsumer.store_offsets.assert_called_once_with(message=message)
+    cconsumer.store_offsets.assert_called_once_with(message=msg)

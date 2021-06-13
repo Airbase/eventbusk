@@ -37,8 +37,10 @@ class BaseBrokerURI(ABC):
         Return a instance created from a URI
         """
 
+
 from types import TracebackType
 from typing import Optional, Type, Union
+
 
 class BaseConsumer(ContextDecorator, ABC):
     """

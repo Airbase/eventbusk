@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from pytest_mock import MockerFixture
+
 from eventbusk import Event, EventBus
 
 
@@ -21,7 +23,7 @@ class Bar(Event):
     second: int
 
 
-def test_bus_send(mocker) -> None:
+def test_bus_send(mocker: MockerFixture) -> None:
     """
     Test basic producer
     """
@@ -65,7 +67,7 @@ def test_bus_send(mocker) -> None:
     )
 
 
-def test_bus_receiver(mocker):
+def test_bus_receiver(mocker: MockerFixture) -> None:
     """
     Test basic consumer
     """
@@ -78,11 +80,11 @@ def test_bus_receiver(mocker):
 
     # When consumer receivers are linked to certain event types.
     @bus.receive(event_type=Foo)
-    def foo_processor(event):
+    def foo_processor(event: Event) -> None:
         pass
 
     @bus.receive(event_type=Bar)
-    def bar_processor(event):
+    def bar_processor(event: Event) -> None:
         pass
 
     # Then ensure receivers are correctly registered

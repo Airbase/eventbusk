@@ -50,3 +50,6 @@ repos:
     rev: v0.902
     hooks:
       - id: mypy
+        args: ["--config-file=pyproject.toml"]
+        files: ^eventbusk/
+        additional_dependencies: ["types-click"]

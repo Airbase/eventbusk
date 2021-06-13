@@ -10,7 +10,7 @@ import sys
 import threading
 from contextlib import contextmanager, suppress
 from types import ModuleType
-from typing import Generator, Optional, Callable
+from typing import Callable, Generator, Optional
 
 import click
 import cotyledon  # type: ignore
