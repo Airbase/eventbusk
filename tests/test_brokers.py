@@ -122,7 +122,7 @@ def test_producer_factory_bad_broker(broker: str) -> None:
     # Then ensure an exception is raised
     with pytest.raises(ValueError):
         # When a producer is initialized
-        producer = Producer(broker=broker)
+        _ = Producer(broker=broker)
 
 
 # Dummy broker
@@ -173,9 +173,7 @@ def test_kafka_producer(
     # Given a Kafka producer that
     # mocks the underlying confluent producer so it doesn't try to connect
     cproducer = mocker.Mock()
-    CProducer = mocker.patch(
-        "eventbusk.brokers.kafka.CProducer", return_value=cproducer
-    )
+    mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)
     producer = KafkaProducer(broker="kafka://localhost:9092")
 
     # When we produce an event
@@ -205,9 +203,7 @@ def test_kafka_producer_error(
         raise KafkaError(KafkaError.BROKER_NOT_AVAILABLE)
 
     cproducer.produce.side_effect = raise_exc
-    CProducer = mocker.patch(
-        "eventbusk.brokers.kafka.CProducer", return_value=cproducer
-    )
+    mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)
     producer = KafkaProducer(broker="kafka://localhost:9092")
 
     # When we produce an event
@@ -230,9 +226,7 @@ def test_kafka_consumer(
     # to avoid making a connection
     cconsumer = mocker.Mock()
     cconsumer.poll.return_value = message
-    CConsumer = mocker.patch(
-        "eventbusk.brokers.kafka.CConsumer", return_value=cconsumer
-    )
+    mocker.patch("eventbusk.brokers.kafka.CConsumer", return_value=cconsumer)
     with KafkaConsumer(
         broker="kafka://localhost:9092", topic="mytopic", group="mygroup"
     ) as consumer:

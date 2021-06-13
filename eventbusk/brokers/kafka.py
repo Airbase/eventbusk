@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Optional, Type, Union
 from confluent_kafka import Consumer as CConsumer  # type: ignore
 from confluent_kafka import KafkaError
 from confluent_kafka import Producer as CProducer
-from confluent_kafka import cimpl
 
 from ..exceptions import ProducerError
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer
@@ -234,7 +233,8 @@ class Producer(BaseProducer):
                     "Error producing event.",
                     extra={"topic": topic, "flush": flush},
                     # Cannot add exc_info=True because of
-                    # AttributeError: 'cimpl.KafkaError' object has no attribute '__traceback__'
+                    # AttributeError: 'cimpl.KafkaError' object has no
+                    #    attribute '__traceback__'
                 )
             else:
                 raise ProducerError from exc

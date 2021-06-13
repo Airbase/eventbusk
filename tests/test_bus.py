@@ -29,7 +29,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
     """
     # Given an instance of an event bus
     producer = mocker.Mock()
-    Producer = mocker.patch("eventbusk.bus.Producer", return_value=producer)
+    mocker.patch("eventbusk.bus.Producer", return_value=producer)
     bus = EventBus(broker="kafka://localhost:9092")
 
     # Given events registered to certain topics

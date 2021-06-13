@@ -191,7 +191,8 @@ class EventBus:
 
                             # TODO: Remove kafka Message dependency from here.
                             # How do we ack generic messages?
-                            #  Item "str" of "Union[str, Any, bytes]" has no attribute "error
+                            # Item "str" of "Union[str, Any, bytes]" has no attribute
+                            # "error
                             msg_error = message.error()  # type: ignore
                             if msg_error:
                                 msg = (
@@ -210,8 +211,10 @@ class EventBus:
 
                             # Deserialise to the dataclass of the event
                             # TODO: Remove kafka Message dependency from here.
-                            #  Item "str" of "Union[str, Any, bytes]" has no attribute "value
-                            event_data = json.loads(message.value().decode("utf-8"))  # type: ignore
+                            # Item "str" of "Union[str, Any, bytes]" has no attribute
+                            # "value
+                            msg_value = message.value().decode("utf-8")  # type: ignore
+                            event_data = json.loads(msg_value)
 
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]
@@ -233,7 +236,9 @@ class EventBus:
 
                             if success:
                                 # TODO: Fix following
-                                #  Argument "message" to "ack" of "BaseConsumer" has incompatible type "Union[str, Any, bytes]"; expected "str"  [arg-type]
+                                #  Argument "message" to "ack" of "BaseConsumer" has
+                                #  incompatible type "Union[str, Any, bytes]"; expected
+                                #  "str" [arg-type]
                                 consumer.ack(message=message)  # type: ignore
 
                         except KeyboardInterrupt:

@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
-from typing import Callable, Optional, Union
+from types import TracebackType
+from typing import Callable, Optional, Type, Union
 
 from confluent_kafka import cimpl  # type: ignore
 
@@ -36,10 +37,6 @@ class BaseBrokerURI(ABC):
         """
         Return a instance created from a URI
         """
-
-
-from types import TracebackType
-from typing import Optional, Type, Union
 
 
 class BaseConsumer(ContextDecorator, ABC):
