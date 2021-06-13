@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, Optional, Type
+from types import TracebackType
 
 from confluent_kafka import Consumer as CConsumer
 from confluent_kafka import KafkaError
@@ -10,7 +11,7 @@ from confluent_kafka import Producer as CProducer
 from confluent_kafka import cimpl
 
 from ..exceptions import ProducerError
-from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT, MessageT
 
 # Delivery callback method `on_delivery` has the following type.
 # DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
@@ -127,6 +128,7 @@ class Consumer(BaseConsumer):
     >>> with KafkaConsumer(broker, topic, group) as consumer:
            ...
     """
+    broker: BrokerURI
 
     def __init__(self, broker: str, topic: str, group: str):
         super().__init__()
@@ -156,7 +158,9 @@ class Consumer(BaseConsumer):
         self._consumer.subscribe([self.topic])
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+             exc_value: Optional[BaseException],
+             exc_traceback: Optional[TracebackType]) -> None:
         self._consumer.close()
 
         if exc_type and exc_value and exc_traceback:
@@ -168,13 +172,13 @@ class Consumer(BaseConsumer):
                 ),
             )
 
-    def poll(self, timeout: int) -> Optional[Message]:
+    def poll(self, timeout: int) -> Optional[MessageT]:
         """
         Poll the topic for new messages
         """
         return self._consumer.poll(timeout)
 
-    def ack(self, message: cimpl.Message) :
+    def ack(self, message: Optional[MessageT]) -> None:
         """
         Acknowledge the message
         """

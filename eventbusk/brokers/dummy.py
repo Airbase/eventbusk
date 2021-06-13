@@ -55,6 +55,7 @@ class Consumer(BaseConsumer):
     >>> with DummyConsumer(broker, topic, group) as consumer:
            ...
     """
+    broker: BrokerURI
 
     def __init__(self, broker: str, topic: str, group: str) -> None:
         super().__init__()

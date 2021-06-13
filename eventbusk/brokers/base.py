@@ -58,7 +58,7 @@ class BaseConsumer(ContextDecorator, ABC):
         )
 
     @abstractmethod
-    def poll(self, timeout: int = 1) -> Optional[str]:
+    def poll(self, timeout: int) -> Optional[MessageT]:
         """
         Poll for a specified time in seconds for new messages
         """
@@ -78,11 +78,12 @@ class BaseProducer(ABC):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(" f"broker=*>"
 
+    @abstractmethod
     def __init__(self, broker: str):
         super().__init__()
 
     @abstractmethod
-    def produce(
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: str,
