@@ -77,6 +77,7 @@ def cli() -> None:
 
 class Worker(cotyledon.Service):  # type: ignore
     """Process handling an event receiver."""
+
     def __init__(self, worker_id: int, receiver: Callable[..., None]) -> None:
         super().__init__(worker_id)
         self._shutdown = threading.Event()
