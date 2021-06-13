@@ -38,8 +38,8 @@ repos:
     rev: v2.8.2
     hooks:
     -   id: pylint
-        args: [--extension-pkg-whitelist=django]
-        additional_dependencies: ["Django"]
+        args: []
+        additional_dependencies: []
 
 -   repo: https://github.com/pycqa/flake8
     rev: "3.9.2"

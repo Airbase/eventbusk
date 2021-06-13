@@ -6,7 +6,7 @@ authors = ["Airbase Inc <developers@airbase.io>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-click = "^7"
+click = ">=7"
 confluent-kafka = "^1.6"
 cotyledon = "^1.7"
 

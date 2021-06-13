@@ -1,18 +1,18 @@
 # eventbusk - Event Bus Framework
 
 - Version:
-- Download: https://github.com/Airbase/eventbusk/
-- Source: https://github.com/Airbase/eventbusk/
+- [Download](https://github.com/Airbase/eventbusk/)
+- [Source](https://github.com/Airbase/eventbusk/)
 - Keywords: event-bus, distributed, stream, processing, data, queue, kafka, python
 
+## Install
 
-# Install
-
-```
+```bash
 pip install git+https://github.com/Airbase/eventbusk.git@SM-event-bus
 ```
 
-# Quick Start
+## Quick Start
+
 ```python
 from eventbus import Event, EventBus
 
@@ -39,6 +39,7 @@ bus.send(f)
 ```
 
 ## Examples
+
 See `examples/eventbus.py` for a concrete example.
 You can run workers for all the receivers
 

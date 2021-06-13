@@ -14,7 +14,6 @@ from dataclasses import dataclass
 
 from eventbusk import Event, EventBus
 
-
 logger = logging.getLogger(__name__)
 bus = EventBus(broker="kafka://localhost:9092")
 

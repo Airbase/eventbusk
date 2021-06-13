@@ -84,8 +84,8 @@ class EventBus:
     @staticmethod
     def _to_fqn(event_type: Union[EventT, ReceiverT]) -> str:
         """
-        Returns 'fully qualified name' of an event class or an receiver, to identify them
-        uniquely.
+        Returns 'fully qualified name' of an event class or an receiver, to identify
+        them uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
@@ -148,7 +148,8 @@ class EventBus:
         """
         Decorator to convert a function into an receiver.
 
-        An receiver is a simple function that consumes a specific event on the event bus.
+        An receiver is a simple function that consumes a specific event on the event
+        bus.
         """
         event_fqn = self._to_fqn(event_type)
         if event_fqn not in self._event_to_topic.keys():
@@ -175,8 +176,11 @@ class EventBus:
                             try:
                                 message = consumer.poll(poll_timeout)
                             except ConsumerError:
-                                msg = "Error while consuming message. Topic might be blocked"
-                                logger.exception(err_msg, exc_info=True, extra=log_context)
+                                msg = (
+                                    "Error while consuming message. "
+                                    "Topic might be blocked"
+                                )
+                                logger.exception(msg, exc_info=True, extra=log_context)
                                 self.sleep(seconds=1, message=msg)
                                 continue
 
@@ -185,7 +189,10 @@ class EventBus:
                                 continue
 
                             if message.error():
-                                msg = "Error while consuming message. Topic might be blocked"
+                                msg = (
+                                    "Error while consuming message. "
+                                    "Topic might be blocked"
+                                )
                                 logger.warning(
                                     msg,
                                     extra={
