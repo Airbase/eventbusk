@@ -39,7 +39,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
     bar_event = Bar(second=1)
 
     # When we send events of a different types
-    def on_delivery(error, event) -> None:
+    def on_delivery(error: str, event: Event) -> None:
         """
         Do nothing delivery handler
         """

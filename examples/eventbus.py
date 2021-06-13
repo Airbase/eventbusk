@@ -33,10 +33,10 @@ bus.register_event("topic_bar", Bar)
 
 # Consume an event
 @bus.receive(event_type=Foo)
-def process_a(event):
+def process_a(event: Event) -> None:
     logger.info(f"Foo: {event}")
 
 
 @bus.receive(event_type=Bar)
-def process_b(event):
+def process_b(event: Event) -> None:
     logger.info(f"Bar: {event}")
