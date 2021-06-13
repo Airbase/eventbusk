@@ -31,6 +31,7 @@ class Bar(Event):
 bus.register_event("topic_foo", Foo)
 bus.register_event("topic_bar", Bar)
 
+
 # Consume an event
 @bus.receive(event_type=Foo)
 def process_a(event: Event) -> None:
