@@ -1,9 +1,12 @@
+"""
+Kafka Broker
+"""
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Optional, Type, Union
+from typing import TYPE_CHECKING, Optional, Type, Union
 
 from confluent_kafka import Consumer as CConsumer  # type: ignore
 from confluent_kafka import KafkaError
@@ -11,10 +14,10 @@ from confluent_kafka import Producer as CProducer
 from confluent_kafka import cimpl
 
 from ..exceptions import ProducerError
-from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT, MessageT
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 
-# Delivery callback method `on_delivery` has the following type.
-# DeliveryCallBackT = Callable[[KafkaError, cimpl.Message], None]
+if TYPE_CHECKING:
+    from .base import DeliveryCallBackT, MessageT
 
 
 logger = logging.getLogger(__name__)
