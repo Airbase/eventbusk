@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
+from confluent_kafka import cimpl
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,11 @@ __all__ = [
     "BaseConsumer",
     "BaseProducer",
 ]
+
+# Type hints
+# callback method `on_delivery` on the producer
+DeliveryCallBackT = Callable[..., None]
+MessageT = Union[str, cimpl.Message]
 
 
 class BaseBrokerURI(ABC):
@@ -62,10 +68,6 @@ class BaseConsumer(ContextDecorator, ABC):
         """
         Acknowledge successful consumption of a message.
         """
-
-
-# Type hint for callback method `on_delivery` on the producer
-DeliveryCallBackT = Callable[..., None]
 
 
 class BaseProducer(ABC):

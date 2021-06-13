@@ -168,13 +168,13 @@ class Consumer(BaseConsumer):
                 ),
             )
 
-    def poll(self, timeout: int):
+    def poll(self, timeout: int) -> Optional[Message]:
         """
         Poll the topic for new messages
         """
         return self._consumer.poll(timeout)
 
-    def ack(self, message):
+    def ack(self, message: cimpl.Message) :
         """
         Acknowledge the message
         """
