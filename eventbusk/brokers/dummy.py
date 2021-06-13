@@ -7,9 +7,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from .base import BaseBrokerURI, BaseConsumer, BaseProducer, DeliveryCallBackT, MessageT
+from .base import BaseBrokerURI, BaseConsumer, BaseProducer
+
+if TYPE_CHECKING:
+    from .base import DeliveryCallBackT, MessageT
 
 logger = logging.getLogger(__name__)
 
