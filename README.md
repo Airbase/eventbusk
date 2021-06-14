@@ -8,7 +8,7 @@
 ## Install
 
 ```bash
-pip install git+https://github.com/Airbase/eventbusk.git@SM-event-bus
+pip install git+https://github.com/Airbase/eventbusk.git
 ```
 
 ## Quick Start
