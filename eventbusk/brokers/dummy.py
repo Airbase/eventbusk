@@ -100,7 +100,7 @@ class Producer(BaseProducer):
         Only logs the message, does not deliver.
         """
         logger.info(
-            "Producing message {value=}.",
+            f"Producing message {value=}.",
             extra={
                 "topic": topic,
                 "value": value,
