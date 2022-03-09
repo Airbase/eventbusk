@@ -14,7 +14,8 @@ pip install git+https://github.com/Airbase/eventbusk.git
 ## Quick Start
 
 ```python
-from eventbus import Event, EventBus
+from eventbusk import Event, EventBus
+from dataclasses import dataclass
 
 # create an app instance of the bus
 bus = EventBus(broker="kafka://localhost:9092")
@@ -35,7 +36,7 @@ def process_a(event):
 
 # Publish an event to the bus
 foo = Foo(foo=1)
-bus.send(f)
+bus.send(foo)
 ```
 
 ## Examples
