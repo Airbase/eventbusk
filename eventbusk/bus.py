@@ -6,8 +6,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+import uuid
 from abc import ABC
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from functools import wraps
 from typing import Callable, Type, Union
 
@@ -31,6 +32,7 @@ class Event(ABC):
         foo: int
         bar: str
     """
+    event_id: str = field(default=False, init=False)
 
 
 EventT = Type[Event]
@@ -120,7 +122,7 @@ class EventBus:
         event_fqn = self.to_fqn(event.__class__)
         # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
-
+        event.event_id = str(uuid.uuid4())
         data = json.dumps(asdict(event)).encode("utf-8")
         try:
             self.producer.produce(
@@ -131,7 +133,7 @@ class EventBus:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
-                    extra={"event": event_fqn, "topic": topic},
+                    extra={"event": event_fqn, "topic": topic, "event_id": event.event_id},
                     exc_info=True,
                 )
             else:

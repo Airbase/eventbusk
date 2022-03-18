@@ -53,7 +53,9 @@ def test_bus_send(mocker: MockerFixture) -> None:
         """
         logger.info(error, event)
 
+    mocker.patch("eventbusk.bus.uuid.uuid4", return_value="foo_event_you_you_id")
     bus.send(foo_event, on_delivery)
+    mocker.patch("eventbusk.bus.uuid.uuid4", return_value="bar_event_you_you_id")
     bus.send(bar_event, on_delivery)
 
     # Then check the underlying producer was correctly called with the right event json
@@ -62,13 +64,13 @@ def test_bus_send(mocker: MockerFixture) -> None:
         [
             mocker.call(
                 topic="first_topic",
-                value=b'{"first": 1}',
+                value=b'{"event_id": "foo_event_you_you_id", "first": 1}',
                 flush=True,
                 on_delivery=on_delivery,
             ),
             mocker.call(
                 topic="second_topic",
-                value=b'{"second": 1}',
+                value=b'{"event_id": "bar_event_you_you_id", "second": 1}',
                 flush=True,
                 on_delivery=on_delivery,
             ),
