@@ -6,8 +6,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+import uuid
 from abc import ABC
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from functools import wraps
 from typing import Callable, Type, Union
 
@@ -31,6 +32,14 @@ class Event(ABC):
         foo: int
         bar: str
     """
+    event_id: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
+
+
+class EventJsonEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        return json.JSONEncoder.default(self, o)
 
 
 EventT = Type[Event]
@@ -120,8 +129,7 @@ class EventBus:
         event_fqn = self.to_fqn(event.__class__)
         # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
-
-        data = json.dumps(asdict(event)).encode("utf-8")
+        data = json.dumps(asdict(event), cls=EventJsonEncoder).encode("utf-8")
         try:
             self.producer.produce(
                 topic=topic, value=data, flush=flush, on_delivery=on_delivery
@@ -131,7 +139,7 @@ class EventBus:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
-                    extra={"event": event_fqn, "topic": topic},
+                    extra={"event": event_fqn, "topic": topic, "event_id": event.event_id},
                     exc_info=True,
                 )
             else:
@@ -216,9 +224,25 @@ class EventBus:
                             msg_value = message.value().decode("utf-8")  # type: ignore
                             event_data = json.loads(msg_value)
 
+                            if "event_id" in event_data:
+                                try:
+                                    event_id = uuid.UUID(event_data.pop('event_id'))
+                                except ValueError:
+                                    logger.exception(
+                                        (
+                                            "Error while converting str -> UUID "
+                                        ),
+                                        extra={**log_context, **{"data": event_data}},
+                                        exc_info=True,
+                                    )
+                                    pass
+                            else:
+                                event_id = None
+
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]
                             event = event_type(**event_data)  # type: ignore
+                            setattr(event, 'event_id', event_id)
 
                             try:
                                 func(event)

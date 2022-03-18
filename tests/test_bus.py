@@ -4,6 +4,7 @@ Test EventBus implementation
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass
 
 from pytest_mock import MockerFixture
@@ -43,8 +44,13 @@ def test_bus_send(mocker: MockerFixture) -> None:
     # Given events registered to certain topics
     bus.register_event(topic="first_topic", event_type=Foo)
     bus.register_event(topic="second_topic", event_type=Bar)
+
+    foo_event_uuid = uuid.uuid4()
+    bar_event_uuid = uuid.uuid4()
     foo_event = Foo(first=1)
+    foo_event.event_id = foo_event_uuid
     bar_event = Bar(second=1)
+    bar_event.event_id = bar_event_uuid
 
     # When we send events of a different types
     def on_delivery(error: str, event: Event) -> None:
@@ -62,13 +68,19 @@ def test_bus_send(mocker: MockerFixture) -> None:
         [
             mocker.call(
                 topic="first_topic",
-                value=b'{"first": 1}',
+                value=bytes(
+                    '{{"event_id": "{foo_event_uuid}", "first": 1}}'.format(foo_event_uuid=str(foo_event_uuid)),
+                    "utf-8"
+                ),
                 flush=True,
                 on_delivery=on_delivery,
             ),
             mocker.call(
                 topic="second_topic",
-                value=b'{"second": 1}',
+                value=bytes(
+                    '{{"event_id": "{bar_event_uuid}", "second": 1}}'.format(bar_event_uuid=str(bar_event_uuid)),
+                    "utf-8"
+                ),
                 flush=True,
                 on_delivery=on_delivery,
             ),
