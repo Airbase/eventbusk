@@ -4,8 +4,7 @@ Test EventBus implementation
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-
+from pydantic.dataclasses import dataclass
 from pytest_mock import MockerFixture
 
 from eventbusk import Event, EventBus

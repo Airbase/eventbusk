@@ -8,7 +8,9 @@ import logging
 import time
 import uuid
 from abc import ABC
-from dataclasses import asdict, dataclass, field
+from pydantic.dataclasses import dataclass
+from pydantic.json import pydantic_encoder
+from dataclasses import asdict, field
 from functools import wraps
 from typing import Callable, Type, Union
 
@@ -123,7 +125,7 @@ class EventBus:
         # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
         event.event_id = str(uuid.uuid4())
-        data = json.dumps(asdict(event)).encode("utf-8")
+        data = json.dumps(event, default=pydantic_encoder).encode("utf-8")
         try:
             self.producer.produce(
                 topic=topic, value=data, flush=flush, on_delivery=on_delivery
