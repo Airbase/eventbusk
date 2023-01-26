@@ -7,7 +7,7 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import ContextDecorator
 from types import TracebackType
-from typing import Callable, Optional, Type, Union
+from typing import Callable, Optional, Union
 
 from confluent_kafka import cimpl  # type: ignore
 
@@ -64,7 +64,7 @@ class BaseConsumer(ContextDecorator, ABC):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         exc_traceback: Optional[TracebackType],
     ) -> None:

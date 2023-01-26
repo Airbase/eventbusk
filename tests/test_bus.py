@@ -69,8 +69,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
             mocker.call(
                 topic="first_topic",
                 value=bytes(
-                    '{{"event_id": "{foo_event_uuid}", "first": 1}}'.format(foo_event_uuid=str(foo_event_uuid)),
-                    "utf-8"
+                    f'{{"event_id": "{str(foo_event_uuid)}", "first": 1}}', "utf-8"
                 ),
                 flush=True,
                 on_delivery=on_delivery,
@@ -78,8 +77,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
             mocker.call(
                 topic="second_topic",
                 value=bytes(
-                    '{{"event_id": "{bar_event_uuid}", "second": 1}}'.format(bar_event_uuid=str(bar_event_uuid)),
-                    "utf-8"
+                    f'{{"event_id": "{str(bar_event_uuid)}", "second": 1}}', "utf-8"
                 ),
                 flush=True,
                 on_delivery=on_delivery,

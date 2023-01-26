@@ -8,9 +8,10 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from types import ModuleType
-from typing import Callable, Generator, Optional
+from typing import Callable, Optional
 
 import click
 import cotyledon  # type: ignore

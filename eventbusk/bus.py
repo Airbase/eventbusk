@@ -10,7 +10,7 @@ import uuid
 from abc import ABC
 from dataclasses import asdict, dataclass, field
 from functools import wraps
-from typing import Callable, Type, Union
+from typing import Callable, Union
 
 from confluent_kafka import KafkaError  # type: ignore
 
@@ -32,17 +32,22 @@ class Event(ABC):
         foo: int
         bar: str
     """
+
     event_id: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
 
 
 class EventJsonEncoder(json.JSONEncoder):
+    """
+    JSON encoder that additionally converts uuid to str.
+    """
+
     def default(self, o):
         if isinstance(o, uuid.UUID):
             return str(o)
         return json.JSONEncoder.default(self, o)
 
 
-EventT = Type[Event]
+EventT = type[Event]
 ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
 ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
@@ -139,7 +144,11 @@ class EventBus:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
-                    extra={"event": event_fqn, "topic": topic, "event_id": event.event_id},
+                    extra={
+                        "event": event_fqn,
+                        "topic": topic,
+                        "event_id": event.event_id,
+                    },
                     exc_info=True,
                 )
             else:
@@ -161,7 +170,7 @@ class EventBus:
         bus.
         """
         event_fqn = self.to_fqn(event_type)
-        if event_fqn not in self._event_to_topic.keys():
+        if event_fqn not in self._event_to_topic:
             raise UnknownEvent(
                 "Register the event to a topic using "
                 f"`bus.register_event('foo_topic', {event_type})`"
@@ -172,9 +181,12 @@ class EventBus:
             group = self.to_fqn(func)
             receiver_fqn = self.to_fqn(func)
             topic = self._event_to_topic[event_fqn]
-            log_context = dict(
-                event=event_fqn, receiver=receiver_fqn, topic=topic, group=group
-            )
+            log_context = {
+                "event": event_fqn,
+                "receiver": receiver_fqn,
+                "topic": topic,
+                "group": group,
+            }
 
             @wraps(func)
             def wrapper() -> None:
@@ -226,23 +238,20 @@ class EventBus:
 
                             if "event_id" in event_data:
                                 try:
-                                    event_id = uuid.UUID(event_data.pop('event_id'))
+                                    event_id = uuid.UUID(event_data.pop("event_id"))
                                 except ValueError:
                                     logger.exception(
-                                        (
-                                            "Error while converting str -> UUID "
-                                        ),
+                                        ("Error while converting str -> UUID "),
                                         extra={**log_context, **{"data": event_data}},
                                         exc_info=True,
                                     )
-                                    pass
                             else:
                                 event_id = None
 
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]
                             event = event_type(**event_data)  # type: ignore
-                            setattr(event, 'event_id', event_id)
+                            setattr(event, "event_id", event_id)
 
                             try:
                                 func(event)
