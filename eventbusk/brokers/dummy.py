@@ -102,9 +102,9 @@ class Producer(BaseProducer):
         logger.info(
             f"Producing message {value=}.",
             extra={
+                "flush": True,
                 "topic": topic,
                 "value": value,
-                "flush": True,
             },
         )
         # TODO: call # on_delivery

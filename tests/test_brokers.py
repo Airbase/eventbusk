@@ -10,12 +10,16 @@ from confluent_kafka import KafkaError  # type: ignore
 from pytest_mock import MockerFixture
 
 from eventbusk.brokers import Consumer, Producer
-from eventbusk.brokers.dummy import BrokerURI as DummyBrokerURI
-from eventbusk.brokers.dummy import Consumer as DummyConsumer
-from eventbusk.brokers.dummy import Producer as DummyProducer
-from eventbusk.brokers.kafka import BrokerURI as KafkaBrokerURI
-from eventbusk.brokers.kafka import Consumer as KafkaConsumer
-from eventbusk.brokers.kafka import Producer as KafkaProducer
+from eventbusk.brokers.dummy import (
+    BrokerURI as DummyBrokerURI,
+    Consumer as DummyConsumer,
+    Producer as DummyProducer,
+)
+from eventbusk.brokers.kafka import (
+    BrokerURI as KafkaBrokerURI,
+    Consumer as KafkaConsumer,
+    Producer as KafkaProducer,
+)
 from eventbusk.exceptions import ProducerError
 
 
