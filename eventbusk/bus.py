@@ -12,10 +12,8 @@ from dataclasses import asdict, dataclass, field
 from functools import wraps
 from typing import Callable, Union
 
-from confluent_kafka import KafkaError  # type: ignore
-
 from .brokers import Consumer, DeliveryCallBackT, Producer
-from .exceptions import AlreadyRegistered, ConsumerError, UnknownEvent
+from .exceptions import AlreadyRegistered, ConsumerError, ProducerError, UnknownEvent
 
 logger = logging.getLogger(__name__)
 
@@ -135,19 +133,19 @@ class EventBus:
         # TODO: Ensure unknown event throws a error.
         topic = self._event_to_topic[event_fqn]
         data = json.dumps(asdict(event), cls=EventJsonEncoder).encode("utf-8")
+
         try:
             self.producer.produce(
                 topic=topic, value=data, flush=flush, on_delivery=on_delivery
             )
-        # TODO: Replace with ProducerError
-        except KafkaError as exc:
+        except ProducerError as exc:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
                     extra={
                         "event": event_fqn,
-                        "topic": topic,
                         "event_id": event.event_id,
+                        "topic": topic,
                     },
                     exc_info=True,
                 )

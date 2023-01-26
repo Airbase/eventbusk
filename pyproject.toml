@@ -27,7 +27,16 @@ taskipy = "1.10.3"
 eventbusk = "eventbusk.cli:cli"
 
 [tool.isort]
+combine_as_imports = true
 profile = "black"
+src_paths = ["eventbusk"]
+
+[tool.black]
+extend-exclude = ''
+include = '\.pyi?$'
+line-length = 88
+safe = true
+target-version = ['py39']
 
 [tool.mypy]
 python_version = "3.9"

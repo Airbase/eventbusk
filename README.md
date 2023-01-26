@@ -47,3 +47,15 @@ You can run workers for all the receivers
 ```bash
 eventbusk worker -A eventbus:bus
 ```
+
+## Contributing
+
+You can first setup the project locally as follows
+
+```bash
+git clone git@github.com:Airbase/eventbusk.git
+cd eventbusk
+poetry shell
+poetry install --no-root
+pre-commit install
+```

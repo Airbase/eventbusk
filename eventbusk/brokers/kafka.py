@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import TYPE_CHECKING, Optional, Union
 
-from confluent_kafka import Consumer as CConsumer  # type: ignore
-from confluent_kafka import KafkaError
-from confluent_kafka import Producer as CProducer
+from confluent_kafka import (  # type: ignore
+    Consumer as CConsumer,
+    KafkaError,
+    Producer as CProducer,
+)
 
 from ..exceptions import ProducerError
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer
@@ -215,12 +217,11 @@ class Producer(BaseProducer):
         """
         Sends the message to a Kafka topic
         """
-        logger.info(
+        logger.debug(
             "Producing message.",
             extra={
-                "topic": topic,
-                "value": value,
                 "flush": flush,
+                "topic": topic,
             },
         )
         try:
