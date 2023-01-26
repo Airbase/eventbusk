@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Optional, Type, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from confluent_kafka import Consumer as CConsumer  # type: ignore
 from confluent_kafka import KafkaError
@@ -163,7 +163,7 @@ class Consumer(BaseConsumer):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         exc_traceback: Optional[TracebackType],
     ) -> None:
@@ -173,9 +173,11 @@ class Consumer(BaseConsumer):
             logger.warning(
                 "Kafka consumer error.",
                 exc_info=True,
-                extra=dict(
-                    exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback
-                ),
+                extra={
+                    "exc_type": exc_type,
+                    "exc_value": exc_value,
+                    "exc_traceback": exc_traceback,
+                },
             )
 
     def poll(self, timeout: int) -> Optional[MessageT]:
