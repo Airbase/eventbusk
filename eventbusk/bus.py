@@ -271,6 +271,8 @@ class EventBus:
                                 #  incompatible type "Union[str, Any, bytes]"; expected
                                 #  "str" [arg-type]
                                 consumer.ack(message=message)  # type: ignore
+                            else:
+                                logger.warning("Not acknowledging message.", extra={**log_context, "data": event})
 
                         except KeyboardInterrupt:
                             logger.info("Closing receiver.", extra=log_context)
