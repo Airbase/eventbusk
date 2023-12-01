@@ -39,23 +39,39 @@ foo = Foo(foo=1)
 bus.send(foo)
 ```
 
-## Examples
-
-See `examples/eventbus.py` for a concrete example.
-You can run workers for all the receivers
-
-```bash
-eventbusk worker -A eventbus:bus
-```
-
 ## Contributing
 
-You can first setup the project locally as follows
+Pre-requisites include installing
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+You can start a Confluent Kafka server locally via docker by following
+https://docs.confluent.io/platform/current/platform-quickstart.html
+
+Next setup the project locally as follows
 
 ```bash
 git clone git@github.com:Airbase/eventbusk.git
 cd eventbusk
-poetry shell
-poetry install --no-root
 pre-commit install
+source $(poetry env info -p)/bin/activate
+poetry install --no-root
+pip install --editable .
+```
+
+Now you can run the example project consumers. Ensure the topics in the example are created first.
+
+```bash
+cd examples
+eventbusk worker -A eventbus:bus
+```
+
+
+You can also publish
+
+```bash
+python
+
+>>> from eventbus import bus, Fooey
+>>> bus.send(Fooey(foo_val="lorem ipsum"))
 ```
