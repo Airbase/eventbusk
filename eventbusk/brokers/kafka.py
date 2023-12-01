@@ -156,7 +156,7 @@ class Consumer(BaseConsumer):
             {
                 "group.id": self.group,
                 "auto.offset.reset": "latest",  # TODO: This will change per receiver
-                "enable.auto.offset.store": False,
+                "enable.auto.commit": False,
             }
         )
         self._consumer = CConsumer(config)
@@ -190,9 +190,9 @@ class Consumer(BaseConsumer):
 
     def ack(self, message: Optional[MessageT]) -> None:
         """
-        Acknowledge the message
+        Acknowledge the message by explicitly committing.
         """
-        self._consumer.store_offsets(message=message)
+        self._consumer.commit(message=message)
 
 
 class Producer(BaseProducer):

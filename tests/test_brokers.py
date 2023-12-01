@@ -91,7 +91,6 @@ def test_consumer_factory_bad_broker(broker: str, topic: str, group: str) -> Non
     with pytest.raises(ValueError):
         # When Consumer is instantiated
         with Consumer(broker=broker, topic=topic, group=group) as consumer:
-
             assert consumer is not None
 
 
@@ -250,4 +249,4 @@ def test_kafka_consumer(
 
     # Then ensure underlying confluent consumer is correctly called
     cconsumer.poll.assert_called_once_with(timeout)
-    cconsumer.store_offsets.assert_called_once_with(message=msg)
+    cconsumer.commit.assert_called_once_with(message=msg)
