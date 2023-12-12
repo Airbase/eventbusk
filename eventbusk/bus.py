@@ -81,8 +81,11 @@ class EventBus:
 
     def __init__(self, broker: str):
         self.broker = broker
-        # TODO: Make Lazy create on first send?
-        self.producer = Producer(broker)
+        # Lazily create on first send
+        # This is done to avoid issues forking, causing flush to fail.
+        # https://github.com/confluentinc/confluent-kafka-python/issues/1122
+        # https://github.com/dpkp/kafka-python/issues/1098
+        self.producer = None
 
         # Registries
         # Topic <--> Event type is a 1-1 relation right now, i.e. a topic can only
@@ -128,6 +131,8 @@ class EventBus:
         """
         Send an event on the bus.
         """
+        if self.producer is None:
+            self.producer = Producer(broker=self.broker)
 
         event_fqn = self.to_fqn(event.__class__)
         # TODO: Ensure unknown event throws a error.

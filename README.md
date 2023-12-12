@@ -1,9 +1,6 @@
 # eventbusk - Event Bus Framework
 
-- Version:
-- [Download](https://github.com/Airbase/eventbusk/)
-- [Source](https://github.com/Airbase/eventbusk/)
-- Keywords: event-bus, distributed, stream, processing, data, queue, kafka, python
+Keywords: event-bus, distributed, stream, processing, data, queue, kafka, python
 
 ## Install
 
