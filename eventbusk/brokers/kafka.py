@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from confluent_kafka import (  # type: ignore
     Consumer as CConsumer,
@@ -165,9 +165,9 @@ class Consumer(BaseConsumer):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        exc_traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: TracebackType | None,
     ) -> None:
         self._consumer.close()
 
@@ -182,13 +182,13 @@ class Consumer(BaseConsumer):
                 },
             )
 
-    def poll(self, timeout: int) -> Optional[MessageT]:
+    def poll(self, timeout: int) -> MessageT | None:
         """
         Poll the topic for new messages
         """
         return self._consumer.poll(timeout)
 
-    def ack(self, message: Optional[MessageT]) -> None:
+    def ack(self, message: MessageT | None) -> None:
         """
         Acknowledge the message by explicitly committing.
         """

@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import ContextDecorator
 from types import TracebackType
-from typing import Callable, Optional, Union
+from typing import Union
 
 from confluent_kafka import cimpl  # type: ignore
 
@@ -23,7 +24,7 @@ __all__ = [
 # Type hints
 # callback method `on_delivery` on the producer
 DeliveryCallBackT = Callable[..., None]
-MessageT = Union[str, bytes, cimpl.Message]
+MessageT = Union[str, bytes, cimpl.Message]  # pylint: disable=invalid-name
 
 
 class BaseBrokerURI(ABC):
@@ -64,14 +65,14 @@ class BaseConsumer(ContextDecorator, ABC):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        exc_traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: TracebackType | None,
     ) -> None:
         pass
 
     @abstractmethod
-    def poll(self, timeout: int) -> Optional[MessageT]:  # type: ignore
+    def poll(self, timeout: int) -> MessageT | None:  # type: ignore
         """
         Poll for a specified time in seconds for new messages
         """

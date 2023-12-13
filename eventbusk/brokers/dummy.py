@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 
@@ -67,7 +67,7 @@ class Consumer(BaseConsumer):
         self.topic = topic
         self.group = group
 
-    def poll(self, timeout: int = 1) -> Optional[MessageT]:
+    def poll(self, timeout: int = 1) -> MessageT | None:
         """
         Sleeps for the required timeout, and returns no message.
         """
