@@ -275,10 +275,16 @@ class EventBus:
                                 #  Argument "message" to "ack" of "BaseConsumer" has
                                 #  incompatible type "Union[str, Any, bytes]"; expected
                                 #  "str" [arg-type]
-                                logger.info("Acknowledging message.", extra={**log_context, "event_id": event_id})
+                                logger.info(
+                                    "Acknowledging message.",
+                                    extra={**log_context, "event_id": event_id},
+                                )
                                 consumer.ack(message=message)  # type: ignore
                             else:
-                                logger.warning("Not acknowledging message.", extra={**log_context, "data": event})
+                                logger.warning(
+                                    "Not acknowledging message.",
+                                    extra={**log_context, "data": event},
+                                )
 
                         except KeyboardInterrupt:
                             logger.info("Closing receiver.", extra=log_context)
