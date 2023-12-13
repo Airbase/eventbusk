@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "eventbusk"
 version = "0.1.6"
-description = "Event bus with Kafka"
+description = "Event bus framework(with Kafka support)"
 authors = ["Airbase Inc <developers@airbase.io>"]
 
 [tool.poetry.dependencies]
