@@ -8,9 +8,9 @@ import logging
 import time
 import uuid
 from abc import ABC
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from functools import wraps
-from typing import Callable, Union
 
 from .brokers import Consumer, DeliveryCallBackT, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, ProducerError, UnknownEvent
@@ -98,7 +98,7 @@ class EventBus:
         self._receivers: set[ReceiverWrappedT] = set()
 
     @staticmethod
-    def to_fqn(event_type: Union[EventT, ReceiverT]) -> str:
+    def to_fqn(event_type: EventT | ReceiverT) -> str:
         """
         Returns 'fully qualified name' of an event class or an receiver, to identify
         them uniquely.
@@ -165,7 +165,9 @@ class EventBus:
         return self._receivers
 
     # TODO: add group parameter?
-    def receive(self, event_type: EventT, poll_timeout: int = 1) -> ReceivedOuterT:
+    def receive(  # pylint: disable=too-complex
+        self, event_type: EventT, poll_timeout: int = 1
+    ) -> ReceivedOuterT:
         """
         Decorator to convert a function into an receiver.
 
@@ -275,10 +277,16 @@ class EventBus:
                                 #  Argument "message" to "ack" of "BaseConsumer" has
                                 #  incompatible type "Union[str, Any, bytes]"; expected
                                 #  "str" [arg-type]
-                                logger.info("Acknowledging message.", extra={**log_context, "event_id": event_id})
+                                logger.info(
+                                    "Acknowledging message.",
+                                    extra={**log_context, "event_id": event_id},
+                                )
                                 consumer.ack(message=message)  # type: ignore
                             else:
-                                logger.warning("Not acknowledging message.", extra={**log_context, "data": event})
+                                logger.warning(
+                                    "Not acknowledging message.",
+                                    extra={**log_context, "data": event},
+                                )
 
                         except KeyboardInterrupt:
                             logger.info("Closing receiver.", extra=log_context)

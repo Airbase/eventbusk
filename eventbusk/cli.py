@@ -8,10 +8,9 @@ import logging
 import os
 import sys
 import threading
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from types import ModuleType
-from typing import Callable, Optional
 
 import click
 import cotyledon  # type: ignore
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def cwd_in_path() -> Generator[Optional[str], None, None]:
+def cwd_in_path() -> Generator[str | None, None, None]:
     """Context adding the current working directory to sys.path."""
     cwd = os.getcwd()
     if cwd in sys.path:
