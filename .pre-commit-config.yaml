@@ -14,7 +14,14 @@ repos:
     rev: v3.15.0
     hooks:
     -   id: pyupgrade
-        args: ["--py39-plus", "--keep-runtime-typing"]
+        args: ["--py311-plus", "--keep-runtime-typing"]
+
+# -   repo: https://github.com/astral-sh/ruff-pre-commit
+#     rev: v0.1.7
+#     hooks:
+#     -   id: ruff
+#         args: [ --fix ]
+#     -   id: ruff-format
 
 -   repo: https://github.com/myint/autoflake
     rev: v2.2.1
@@ -31,7 +38,7 @@ repos:
     rev: v3.0.3
     hooks:
     -   id: pylint
-        args: [--extension-pkg-whitelist=confluent_kafka]
+        args: [--extension-pkg-whitelist=confluent_kafka, --load-plugins=pylint.extensions.bad_builtin, --load-plugins=pylint.extensions.mccabe]
         additional_dependencies: ["click", "confluent_kafka", "cotyledon", "pytest", "pytest_mock"]
 
 -   repo: https://github.com/pycqa/isort
