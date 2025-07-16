@@ -158,7 +158,7 @@ class EventBus:
             else:
                 raise exc
 
-    def set_post_receive_hook(self, hook: Callable[[Event, bool], None]) -> None:  # --- PATCHED
+    def set_post_receive_hook(self, hook: Callable[[Event, bool], None]) -> None:
         """
         Sets a global post-receive hook, called after each handler.
         """
