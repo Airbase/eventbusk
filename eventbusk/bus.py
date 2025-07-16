@@ -1,6 +1,3 @@
-"""
-EventBus implementation
-"""
 from __future__ import annotations
 
 import json
@@ -96,6 +93,7 @@ class EventBus:
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
         self._receivers: set[ReceiverWrappedT] = set()
+        self.post_receive_hook: Callable[[Event, bool], None] | None = None
 
     @staticmethod
     def to_fqn(event_type: EventT | ReceiverT) -> str:
@@ -157,6 +155,12 @@ class EventBus:
             else:
                 raise exc
 
+    def set_post_receive_hook(self, hook: Callable[[Event, bool], None]) -> None:  # --- PATCHED
+        """
+        Sets a global post-receive hook, called after each handler.
+        """
+        self.post_receive_hook = hook
+
     @property
     def receivers(self) -> set[ReceiverWrappedT]:
         """
@@ -166,7 +170,7 @@ class EventBus:
 
     # TODO: add group parameter?
     def receive(  # pylint: disable=too-complex
-        self, event_type: EventT, poll_timeout: int = 1
+        self, event_type: EventT, poll_timeout: int = 1, post_hook: Callable[[Event, bool], None] | None = None,
     ) -> ReceivedOuterT:
         """
         Decorator to convert a function into an receiver.
@@ -287,6 +291,15 @@ class EventBus:
                                     "Not acknowledging message.",
                                     extra={**log_context, "data": event},
                                 )
+                            hook = post_hook or self.post_receive_hook
+                            if hook:
+                                try:
+                                    hook(event, success)
+                                except Exception:
+                                    logger.exception(
+                                        "Error in post-receive hook",
+                                        extra={**log_context, "event_id": event_id},
+                                    )
 
                         except KeyboardInterrupt:
                             logger.info("Closing receiver.", extra=log_context)
