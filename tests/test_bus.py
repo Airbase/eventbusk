@@ -4,9 +4,11 @@ Test EventBus implementation
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass
+from unittest.mock import MagicMock
 
 from eventbusk import Event, EventBus
 from pytest_mock import MockerFixture
@@ -32,6 +34,25 @@ class Bar(Event):
     second: int
 
 
+BROKER = "kafka://localhost:9092"
+
+
+def _make_mock_consumer(event_data: dict) -> MagicMock:
+    """
+    Create a mock Consumer that yields one message with the given event data,
+    then raises KeyboardInterrupt to exit the receive loop.
+    """
+    message = MagicMock()
+    message.error.return_value = None
+    message.value.return_value = json.dumps(event_data).encode("utf-8")
+
+    consumer = MagicMock()
+    consumer.poll.side_effect = [message, KeyboardInterrupt]
+    consumer.__enter__ = MagicMock(return_value=consumer)
+    consumer.__exit__ = MagicMock(return_value=False)
+    return consumer, message
+
+
 def test_bus_send(mocker: MockerFixture) -> None:
     """
     Test basic producer
@@ -39,7 +60,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
     # Given an instance of an event bus
     producer = mocker.Mock()
     mocker.patch("eventbusk.bus.Producer", return_value=producer)
-    bus = EventBus(broker="kafka://localhost:9092")
+    bus = EventBus(broker=BROKER)
 
     # Given events registered to certain topics
     bus.register_event(topic="first_topic", event_type=Foo)
@@ -91,7 +112,7 @@ def test_bus_receive() -> None:
     Test basic consumer
     """
     # Given an instance of an event bus
-    bus = EventBus(broker="kafka://localhost:9092")
+    bus = EventBus(broker=BROKER)
 
     # Given events registered to certain topics
     bus.register_event("first_topic", Foo)
@@ -111,38 +132,20 @@ def test_bus_receive() -> None:
     assert bar_processor in bus.receivers
 
 
-def test_bus_receive_hooks(mocker: MockerFixture) -> None:
-    """
-    Test before_receive and after_receive hooks are stored correctly.
-    """
-    before_hook = mocker.Mock()
-    after_hook = mocker.Mock()
+def test_hooks_default_to_empty_lists() -> None:
+    """Hooks should default to empty lists when not provided."""
+    bus = EventBus(broker=BROKER)
+    assert bus._before_receive_hooks == []
+    assert bus._after_receive_hooks == []
+
+
+def test_hooks_stored_from_init() -> None:
+    """Hooks passed at init should be stored as lists."""
+    hook1 = MagicMock()
+    hook2 = MagicMock()
 
     bus = EventBus(
-        broker="kafka://localhost:9092",
-        before_receive=[before_hook],
-        after_receive=[after_hook],
-    )
-    bus.register_event("first_topic", Foo)
-
-    @bus.receive(event_type=Foo)
-    def foo_processor(event: Event) -> None:
-        logger.info(event)
-
-    assert foo_processor in bus.receivers
-    assert bus._before_receive_hooks == [before_hook]
-    assert bus._after_receive_hooks == [after_hook]
-
-
-def test_bus_receive_hooks_as_list() -> None:
-    """
-    Test that hooks can be passed as a list.
-    """
-    hook1 = lambda: None  # noqa: E731
-    hook2 = lambda: None  # noqa: E731
-
-    bus = EventBus(
-        broker="kafka://localhost:9092",
+        broker=BROKER,
         before_receive=[hook1, hook2],
         after_receive=[hook1],
     )
@@ -151,28 +154,54 @@ def test_bus_receive_hooks_as_list() -> None:
     assert bus._after_receive_hooks == [hook1]
 
 
-def test_bus_add_hooks() -> None:
-    """
-    Test add_before_receive_hook and add_after_receive_hook methods.
-    """
-    hook1 = lambda: None  # noqa: E731
-    hook2 = lambda: None  # noqa: E731
+def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
+    """before_receive hooks run before the handler, after_receive hooks run after."""
+    manager = mocker.Mock()
+    bus = EventBus(
+        broker=BROKER,
+        before_receive=[manager.before_hook],
+        after_receive=[manager.after_hook],
+    )
+    bus.register_event("first_topic", Foo)
 
-    bus = EventBus(broker="kafka://localhost:9092")
-    assert bus._before_receive_hooks == []
-    assert bus._after_receive_hooks == []
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        manager.handler(event)
 
-    bus.add_before_receive_hook(hook1)
-    bus.add_after_receive_hook(hook2)
+    consumer, message = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
 
-    assert bus._before_receive_hooks == [hook1]
-    assert bus._after_receive_hooks == [hook2]
+    foo_processor()
+
+    assert manager.mock_calls == [
+        mocker.call.before_hook(),
+        mocker.call.handler(mocker.ANY),
+        mocker.call.after_hook(),
+    ]
+    consumer.ack.assert_called_once_with(message=message)
 
 
-def test_bus_receive_no_hooks() -> None:
-    """
-    Test that hooks default to empty lists when not provided.
-    """
-    bus = EventBus(broker="kafka://localhost:9092")
-    assert bus._before_receive_hooks == []
-    assert bus._after_receive_hooks == []
+def test_after_hooks_run_when_handler_raises(mocker: MockerFixture) -> None:
+    """after_receive hooks run even when the handler raises; message is not acked."""
+    before_hook = mocker.Mock()
+    after_hook = mocker.Mock()
+
+    bus = EventBus(
+        broker=BROKER,
+        before_receive=[before_hook],
+        after_receive=[after_hook],
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        raise ValueError("handler error")
+
+    consumer, _ = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()
+
+    before_hook.assert_called_once()
+    after_hook.assert_called_once()
+    consumer.ack.assert_not_called()

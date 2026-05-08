@@ -113,14 +113,6 @@ class EventBus:
         self._event_to_topic: dict[str, str] = {}
         self._receivers: set[ReceiverWrappedT] = set()
 
-    def add_before_receive_hook(self, hook: HookT) -> None:
-        """Register an additional hook to run before each event is processed."""
-        self._before_receive_hooks.append(hook)
-
-    def add_after_receive_hook(self, hook: HookT) -> None:
-        """Register an additional hook to run after each event is processed."""
-        self._after_receive_hooks.append(hook)
-
     @staticmethod
     def to_fqn(event_type: EventT | ReceiverT) -> str:
         """
