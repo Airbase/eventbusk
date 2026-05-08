@@ -120,8 +120,8 @@ def test_bus_receive_hooks(mocker: MockerFixture) -> None:
 
     bus = EventBus(
         broker="kafka://localhost:9092",
-        before_receive=before_hook,
-        after_receive=after_hook,
+        before_receive=[before_hook],
+        after_receive=[after_hook],
     )
     bus.register_event("first_topic", Foo)
 

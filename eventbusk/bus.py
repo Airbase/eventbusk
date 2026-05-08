@@ -51,7 +51,7 @@ ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
 ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
 HookT = Callable[[], None]
-HooksT = HookT | list[HookT] | None
+HooksT = list[HookT] | None
 
 
 class EventBus:
@@ -86,8 +86,6 @@ class EventBus:
     def _to_hook_list(hooks: HooksT) -> list[HookT]:
         if hooks is None:
             return []
-        if callable(hooks):
-            return [hooks]
         return list(hooks)
 
     def __init__(
