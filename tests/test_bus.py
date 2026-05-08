@@ -1,15 +1,15 @@
 """
 Test EventBus implementation
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
 from dataclasses import dataclass
 
-from pytest_mock import MockerFixture
-
 from eventbusk import Event, EventBus
+from pytest_mock import MockerFixture
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +109,70 @@ def test_bus_receive() -> None:
     # Then ensure receivers are correctly registered
     assert foo_processor in bus.receivers
     assert bar_processor in bus.receivers
+
+
+def test_bus_receive_hooks(mocker: MockerFixture) -> None:
+    """
+    Test before_receive and after_receive hooks are stored correctly.
+    """
+    before_hook = mocker.Mock()
+    after_hook = mocker.Mock()
+
+    bus = EventBus(
+        broker="kafka://localhost:9092",
+        before_receive=before_hook,
+        after_receive=after_hook,
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        logger.info(event)
+
+    assert foo_processor in bus.receivers
+    assert bus._before_receive_hooks == [before_hook]
+    assert bus._after_receive_hooks == [after_hook]
+
+
+def test_bus_receive_hooks_as_list() -> None:
+    """
+    Test that hooks can be passed as a list.
+    """
+    hook1 = lambda: None  # noqa: E731
+    hook2 = lambda: None  # noqa: E731
+
+    bus = EventBus(
+        broker="kafka://localhost:9092",
+        before_receive=[hook1, hook2],
+        after_receive=[hook1],
+    )
+
+    assert bus._before_receive_hooks == [hook1, hook2]
+    assert bus._after_receive_hooks == [hook1]
+
+
+def test_bus_add_hooks() -> None:
+    """
+    Test add_before_receive_hook and add_after_receive_hook methods.
+    """
+    hook1 = lambda: None  # noqa: E731
+    hook2 = lambda: None  # noqa: E731
+
+    bus = EventBus(broker="kafka://localhost:9092")
+    assert bus._before_receive_hooks == []
+    assert bus._after_receive_hooks == []
+
+    bus.add_before_receive_hook(hook1)
+    bus.add_after_receive_hook(hook2)
+
+    assert bus._before_receive_hooks == [hook1]
+    assert bus._after_receive_hooks == [hook2]
+
+
+def test_bus_receive_no_hooks() -> None:
+    """
+    Test that hooks default to empty lists when not provided.
+    """
+    bus = EventBus(broker="kafka://localhost:9092")
+    assert bus._before_receive_hooks == []
+    assert bus._after_receive_hooks == []
