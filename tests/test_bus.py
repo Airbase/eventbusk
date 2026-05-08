@@ -10,8 +10,9 @@ import uuid
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
-from eventbusk import Event, EventBus
 from pytest_mock import MockerFixture
+
+from eventbusk import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class Bar(Event):
 BROKER = "kafka://localhost:9092"
 
 
-def _make_mock_consumer(event_data: dict) -> MagicMock:
+def _make_mock_consumer(event_data: dict) -> tuple[MagicMock, MagicMock]:
     """
     Create a mock Consumer that yields one message with the given event data,
     then raises KeyboardInterrupt to exit the receive loop.
