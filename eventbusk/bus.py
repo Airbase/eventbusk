@@ -1,6 +1,7 @@
 """
 EventBus implementation
 """
+
 from __future__ import annotations
 
 import json
@@ -49,6 +50,8 @@ EventT = type[Event]
 ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
 ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
+HookT = Callable[[], None]
+HooksT = list[HookT] | None
 
 
 class EventBus:
@@ -79,8 +82,21 @@ class EventBus:
         ...
     """
 
-    def __init__(self, broker: str):
+    @staticmethod
+    def _to_hook_list(hooks: HooksT) -> list[HookT]:
+        if hooks is None:
+            return []
+        return list(hooks)
+
+    def __init__(
+        self,
+        broker: str,
+        before_receive: HooksT = None,
+        after_receive: HooksT = None,
+    ):
         self.broker = broker
+        self._before_receive_hooks: list[HookT] = self._to_hook_list(before_receive)
+        self._after_receive_hooks: list[HookT] = self._to_hook_list(after_receive)
         # Lazily create on first send
         # This is done to avoid issues forking, causing flush to fail.
         # https://github.com/confluentinc/confluent-kafka-python/issues/1122
@@ -258,6 +274,16 @@ class EventBus:
                             event = event_type(**event_data)  # type: ignore
                             setattr(event, "event_id", event_id)
 
+                            for hook in self._before_receive_hooks:
+                                try:
+                                    hook()
+                                except Exception:  # pylint: disable=broad-except
+                                    logger.exception(
+                                        "Error in before_receive hook.",
+                                        extra=log_context,
+                                        exc_info=True,
+                                    )
+
                             try:
                                 func(event)
                                 success = True
@@ -271,6 +297,16 @@ class EventBus:
                                     exc_info=True,
                                 )
                                 success = False
+                            finally:
+                                for hook in self._after_receive_hooks:
+                                    try:
+                                        hook()
+                                    except Exception:  # pylint: disable=broad-except
+                                        logger.exception(
+                                            "Error in after_receive hook.",
+                                            extra=log_context,
+                                            exc_info=True,
+                                        )
 
                             if success:
                                 # TODO: Fix following

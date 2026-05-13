@@ -1,11 +1,14 @@
 """
 Test EventBus implementation
 """
+
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass
+from unittest.mock import MagicMock
 
 from pytest_mock import MockerFixture
 
@@ -32,6 +35,25 @@ class Bar(Event):
     second: int
 
 
+BROKER = "kafka://localhost:9092"
+
+
+def _make_mock_consumer(event_data: dict) -> tuple[MagicMock, MagicMock]:
+    """
+    Create a mock Consumer that yields one message with the given event data,
+    then raises KeyboardInterrupt to exit the receive loop.
+    """
+    message = MagicMock()
+    message.error.return_value = None
+    message.value.return_value = json.dumps(event_data).encode("utf-8")
+
+    consumer = MagicMock()
+    consumer.poll.side_effect = [message, KeyboardInterrupt]
+    consumer.__enter__ = MagicMock(return_value=consumer)
+    consumer.__exit__ = MagicMock(return_value=False)
+    return consumer, message
+
+
 def test_bus_send(mocker: MockerFixture) -> None:
     """
     Test basic producer
@@ -39,7 +61,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
     # Given an instance of an event bus
     producer = mocker.Mock()
     mocker.patch("eventbusk.bus.Producer", return_value=producer)
-    bus = EventBus(broker="kafka://localhost:9092")
+    bus = EventBus(broker=BROKER)
 
     # Given events registered to certain topics
     bus.register_event(topic="first_topic", event_type=Foo)
@@ -91,7 +113,7 @@ def test_bus_receive() -> None:
     Test basic consumer
     """
     # Given an instance of an event bus
-    bus = EventBus(broker="kafka://localhost:9092")
+    bus = EventBus(broker=BROKER)
 
     # Given events registered to certain topics
     bus.register_event("first_topic", Foo)
@@ -109,3 +131,78 @@ def test_bus_receive() -> None:
     # Then ensure receivers are correctly registered
     assert foo_processor in bus.receivers
     assert bar_processor in bus.receivers
+
+
+def test_hooks_default_to_empty_lists() -> None:
+    """Hooks should default to empty lists when not provided."""
+    bus = EventBus(broker=BROKER)
+    assert bus._before_receive_hooks == []
+    assert bus._after_receive_hooks == []
+
+
+def test_hooks_stored_from_init() -> None:
+    """Hooks passed at init should be stored as lists."""
+    hook1 = MagicMock()
+    hook2 = MagicMock()
+
+    bus = EventBus(
+        broker=BROKER,
+        before_receive=[hook1, hook2],
+        after_receive=[hook1],
+    )
+
+    assert bus._before_receive_hooks == [hook1, hook2]
+    assert bus._after_receive_hooks == [hook1]
+
+
+def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
+    """before_receive hooks run before the handler, after_receive hooks run after."""
+    manager = mocker.Mock()
+    bus = EventBus(
+        broker=BROKER,
+        before_receive=[manager.before_hook],
+        after_receive=[manager.after_hook],
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        manager.handler(event)
+
+    consumer, message = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()
+
+    assert manager.mock_calls == [
+        mocker.call.before_hook(),
+        mocker.call.handler(mocker.ANY),
+        mocker.call.after_hook(),
+    ]
+    consumer.ack.assert_called_once_with(message=message)
+
+
+def test_after_hooks_run_when_handler_raises(mocker: MockerFixture) -> None:
+    """after_receive hooks run even when the handler raises; message is not acked."""
+    before_hook = mocker.Mock()
+    after_hook = mocker.Mock()
+
+    bus = EventBus(
+        broker=BROKER,
+        before_receive=[before_hook],
+        after_receive=[after_hook],
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        raise ValueError("handler error")
+
+    consumer, _ = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()
+
+    before_hook.assert_called_once()
+    after_hook.assert_called_once()
+    consumer.ack.assert_not_called()
