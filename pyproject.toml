@@ -33,12 +33,16 @@ combine_as_imports = true
 profile = "black"
 src_paths = ["eventbusk"]
 
-[tool.black]
-extend-exclude = ''
-include = '\.pyi?$'
+[tool.ruff]
 line-length = 88
-safe = true
-target-version = ['py39']
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
 
 [tool.mypy]
 python_version = "3.9"
