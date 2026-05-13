@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def cwd_in_path() -> Generator[str | None, None, None]:
+def cwd_in_path() -> Generator[str | None]:
     """Context adding the current working directory to sys.path."""
     cwd = os.getcwd()
     if cwd in sys.path:
