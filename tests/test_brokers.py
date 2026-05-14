@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from confluent_kafka import KafkaError  # type: ignore
+from confluent_kafka import KafkaError, KafkaException  # type: ignore
 
 from eventbusk.brokers import Consumer, Producer
 from eventbusk.brokers.dummy import (
@@ -201,9 +201,7 @@ def test_kafka_producer_error(
     cproducer = mocker.Mock()
 
     def raise_exc(*args: Any, **kwargs: Any) -> None:
-        raise KafkaError(  # pylint: disable=raising-non-exception
-            KafkaError.BROKER_NOT_AVAILABLE,
-        )
+        raise KafkaException(KafkaError(KafkaError.BROKER_NOT_AVAILABLE))
 
     cproducer.produce.side_effect = raise_exc
     mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)

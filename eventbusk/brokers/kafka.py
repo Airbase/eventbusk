@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Self
 
 from confluent_kafka import (  # type: ignore
     Consumer as CConsumer,
-    KafkaError,
+    KafkaException,
     Producer as CProducer,
 )
 
@@ -218,14 +218,12 @@ class Producer(BaseProducer):
             self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
             if flush:
                 self._producer.flush()
-        except KafkaError as exc:  # pylint: disable=catching-non-exception
+        except KafkaException as exc:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
                     extra={"topic": topic, "flush": flush},
-                    # Cannot add exc_info=True because of
-                    # AttributeError: 'cimpl.KafkaError' object has no
-                    #    attribute '__traceback__'
+                    exc_info=True,
                 )
             else:
-                raise ProducerError from exc  # pylint: disable=bad-exception-cause
+                raise ProducerError from exc
