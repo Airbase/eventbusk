@@ -1,13 +1,10 @@
-"""
-Kafka Broker
-"""
+"""Kafka Broker."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from types import TracebackType
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Self
 
 from confluent_kafka import (  # type: ignore
     Consumer as CConsumer,
@@ -19,6 +16,8 @@ from ..exceptions import ProducerError
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from .base import DeliveryCallBackT, MessageT
 
 
@@ -31,13 +30,12 @@ __all__ = [
     "Producer",
 ]
 
-ConfigT = dict[str, Union[bool, int, str]]
+ConfigT = dict[str, bool | int | str]
 
 
 @dataclass
 class BrokerURI(BaseBrokerURI):
-    """
-    Broker URI
+    """Broker URI.
 
     Basic url is of the format: kafka://localhost:9092
     SASL support is enabled with the format: kafkas://user:pass@localhost:9092
@@ -57,12 +55,10 @@ class BrokerURI(BaseBrokerURI):
 
     @classmethod
     def from_uri(cls, uri: str) -> BrokerURI:
-        """
-        Return an instance from a string URI
-        """
+        """Return an instance from a string URI."""
         invalid_format = ValueError(
             "Broker URI(without SASL) should be of the format 'kafka://host:port' "
-            "or 'kafkas://user:pass@host:port'"
+            "or 'kafkas://user:pass@host:port'",
         )
 
         if uri.startswith("kafka://"):
@@ -104,9 +100,7 @@ class BrokerURI(BaseBrokerURI):
 
     @property
     def default_config(self) -> ConfigT:
-        """
-        Default configuration for consumer or producer instances
-        """
+        """Default configuration for consumer or producer instances."""
         props: ConfigT = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
@@ -117,26 +111,26 @@ class BrokerURI(BaseBrokerURI):
                     "security.protocol": "SASL_SSL",
                     "sasl.username": self.username,
                     "sasl.password": self.password,
-                }
+                },
             )
         return props.copy()
 
 
 class Consumer(BaseConsumer):
-    """
-    Kafka consumer as a context manager.
+    """Kafka consumer as a context manager.
 
     Automatically closes the consumer at the end of the context manager block.
 
-    Example
+    Example:
     -------
     >>> with KafkaConsumer(broker, topic, group) as consumer:
            ...
+
     """
 
     broker: BrokerURI
 
-    def __init__(self, broker: str, *, topic: str, group: str):
+    def __init__(self, broker: str, *, topic: str, group: str) -> None:
         super().__init__()
         self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
@@ -151,14 +145,14 @@ class Consumer(BaseConsumer):
             f"group='{self.group}')>"
         )
 
-    def __enter__(self) -> Consumer:
+    def __enter__(self) -> Self:
         config = self.broker.default_config
         config.update(
             {
                 "group.id": self.group,
                 "auto.offset.reset": "latest",  # TODO: This will change per receiver
                 "enable.auto.commit": False,
-            }
+            },
         )
         self._consumer = CConsumer(config)
         self._consumer.subscribe([self.topic])
@@ -184,24 +178,18 @@ class Consumer(BaseConsumer):
             )
 
     def poll(self, timeout: int) -> MessageT | None:
-        """
-        Poll the topic for new messages
-        """
+        """Poll the topic for new messages."""
         return self._consumer.poll(timeout)
 
     def ack(self, message: MessageT | None) -> None:
-        """
-        Acknowledge the message by explicitly committing.
-        """
+        """Acknowledge the message by explicitly committing."""
         self._consumer.commit(message=message)
 
 
 class Producer(BaseProducer):
-    """
-    Kafka event producer.
-    """
+    """Kafka event producer."""
 
-    def __init__(self, broker: str):
+    def __init__(self, broker: str) -> None:
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
         config = self.broker.default_config
@@ -216,9 +204,7 @@ class Producer(BaseProducer):
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,
     ) -> None:
-        """
-        Sends the message to a Kafka topic
-        """
+        """Sends the message to a Kafka topic."""
         logger.debug(
             "Producing message.",
             extra={

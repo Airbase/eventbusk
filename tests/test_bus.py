@@ -1,6 +1,4 @@
-"""
-Test EventBus implementation
-"""
+"""Test EventBus implementation."""
 
 from __future__ import annotations
 
@@ -8,29 +6,27 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from pytest_mock import MockerFixture
-
 from eventbusk import Event, EventBus
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Foo(Event):
-    """
-    Dummy event
-    """
+    """Dummy event."""
 
     first: int
 
 
 @dataclass
 class Bar(Event):
-    """
-    Dummy event
-    """
+    """Dummy event."""
 
     second: int
 
@@ -39,8 +35,7 @@ BROKER = "kafka://localhost:9092"
 
 
 def _make_mock_consumer(event_data: dict) -> tuple[MagicMock, MagicMock]:
-    """
-    Create a mock Consumer that yields one message with the given event data,
+    """Create a mock Consumer that yields one message with the given event data,
     then raises KeyboardInterrupt to exit the receive loop.
     """
     message = MagicMock()
@@ -55,9 +50,7 @@ def _make_mock_consumer(event_data: dict) -> tuple[MagicMock, MagicMock]:
 
 
 def test_bus_send(mocker: MockerFixture) -> None:
-    """
-    Test basic producer
-    """
+    """Test basic producer."""
     # Given an instance of an event bus
     producer = mocker.Mock()
     mocker.patch("eventbusk.bus.Producer", return_value=producer)
@@ -76,9 +69,7 @@ def test_bus_send(mocker: MockerFixture) -> None:
 
     # When we send events of a different types
     def on_delivery(error: str, event: Event) -> None:
-        """
-        Do nothing delivery handler
-        """
+        """Do nothing delivery handler."""
         logger.info(error, event)
 
     bus.send(foo_event, on_delivery=on_delivery)
@@ -91,7 +82,8 @@ def test_bus_send(mocker: MockerFixture) -> None:
             mocker.call(
                 topic="first_topic",
                 value=bytes(
-                    f'{{"event_id": "{str(foo_event_uuid)}", "first": 1}}', "utf-8"
+                    f'{{"event_id": "{foo_event_uuid!s}", "first": 1}}',
+                    "utf-8",
                 ),
                 flush=True,
                 on_delivery=on_delivery,
@@ -99,19 +91,18 @@ def test_bus_send(mocker: MockerFixture) -> None:
             mocker.call(
                 topic="second_topic",
                 value=bytes(
-                    f'{{"event_id": "{str(bar_event_uuid)}", "second": 1}}', "utf-8"
+                    f'{{"event_id": "{bar_event_uuid!s}", "second": 1}}',
+                    "utf-8",
                 ),
                 flush=True,
                 on_delivery=on_delivery,
             ),
-        ]
+        ],
     )
 
 
 def test_bus_receive() -> None:
-    """
-    Test basic consumer
-    """
+    """Test basic consumer."""
     # Given an instance of an event bus
     bus = EventBus(broker=BROKER)
 

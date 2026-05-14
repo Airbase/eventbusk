@@ -35,7 +35,80 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-extend-select = ["E501", "I"]
+select = ["ALL"]
+ignore = [
+    # Conflicting rules
+    "D203",    # blank-line-before-class: conflicts with D211
+    "D213",    # multi-line-summary-second-line: conflicts with D212
+
+    # Docstring style (too opinionated / would add boilerplate)
+    "D102",    # undocumented-public-method
+    "D104",    # undocumented-public-package
+    "D105",    # undocumented-magic-method
+    "D107",    # undocumented-public-init
+    "D205",    # missing-blank-line-after-summary
+    "D401",    # non-imperative-mood
+    "D402",    # signature-in-docstring
+
+    # Exception message style (opinionated)
+    "TRY003",  # raise-vanilla-args: long messages outside exception class
+    "TRY004",  # type-check-without-type-error
+    "EM101",   # raw-string-in-exception: assigning to msg variable first
+    "EM102",   # f-string-in-exception: assigning to msg variable first
+
+    # Conflicts with the ruff formatter
+    "COM812",  # missing-trailing-comma (formatter handles this)
+
+    # Logging style (project consistently uses f-strings)
+    "G004",    # logging-f-string
+    "G202",    # logging-redundant-exc-info (intentional in except blocks)
+
+    # TODO annotations (intentional TODOs exist in codebase)
+    "FIX002",  # line-contains-todo
+    "TD002",   # missing-todo-author
+    "TD003",   # missing-todo-link
+
+    # Type annotation permissiveness
+    "ANN401",  # any-type (needed for *args/**kwargs)
+    "ANN001",  # missing-type-function-argument (covered by mypy)
+    "ANN201",  # missing-return-type-undocumented-public-function (covered by mypy)
+
+    # Complexity metrics (require refactoring, not linting fixes)
+    "C901",    # complex-structure
+    "PLR0912", # too-many-branches
+    "PLR0915", # too-many-statements
+
+    # Test patterns that are intentional
+    "SLF001",  # private-member-access (legitimate for testing internals)
+    "PLR2004", # magic-value-comparison (well-known constants like port 9092)
+    "PT028",   # pytest-parameter-with-default-argument
+    "PT011",   # pytest-raises-too-broad
+
+    # blanket type: ignore (third-party libs without stubs)
+    "PGH003",  # blanket-type-ignore
+
+    # Commented-out code used as intentional documentation
+    "ERA001",  # commented-out-code
+
+    # Would break public API to rename
+    "N818",    # error-suffix-on-exception-name (UnknownEvent, AlreadyRegistered)
+
+    # examples/ is not a package
+    "INP001",  # implicit-namespace-package
+
+    # Misc
+    "LOG014",  # exc-info-outside-except-handler
+    "ARG001",  # unused-function-argument (interface methods, test event handlers)
+    "ARG002",  # unused-method-argument (interface methods)
+    "S105",    # hardcoded-password-string (test assertion, not real password)
+    "B024",    # abstract-base-class-without-abstract-method
+    "TID252",  # relative-imports (used throughout the package)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # assert: fine in tests
+]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true

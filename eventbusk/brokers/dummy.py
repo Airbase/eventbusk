@@ -1,5 +1,4 @@
-"""
-Dummy broker for use cases where a real implementation of the event bus is not
+"""Dummy broker for use cases where a real implementation of the event bus is not
 required, eg. CI pipelines.
 """
 
@@ -27,8 +26,7 @@ __all__ = [
 
 @dataclass
 class BrokerURI(BaseBrokerURI):
-    """
-    Broker URI
+    """Broker URI.
 
     Basic url is of the format: dummy://
 
@@ -39,9 +37,7 @@ class BrokerURI(BaseBrokerURI):
 
     @classmethod
     def from_uri(cls, uri: str) -> BrokerURI:
-        """
-        Instantiate from a URI like "dummy://"
-        """
+        """Instantiate from a URI like "dummy://"."""
         invalid_format = ValueError("Broker URI should be of the format 'dummy://'")
 
         if not uri.startswith("dummy://"):
@@ -51,13 +47,13 @@ class BrokerURI(BaseBrokerURI):
 
 
 class Consumer(BaseConsumer):
-    """
-    Dummy event consumer which simply loses all events!
+    """Dummy event consumer which simply loses all events.
 
-    Example
+    Example:
     -------
     >>> with DummyConsumer(broker, topic, group) as consumer:
            ...
+
     """
 
     broker: BrokerURI
@@ -69,23 +65,17 @@ class Consumer(BaseConsumer):
         self.group = group
 
     def poll(self, timeout: int = 1) -> MessageT | None:
-        """
-        Sleeps for the required timeout, and returns no message.
-        """
+        """Sleeps for the required timeout, and returns no message."""
         time.sleep(timeout)
 
     def ack(self, message: MessageT) -> None:
-        """
-        Acknowledge event
-        """
+        """Acknowledge event."""
 
 
 class Producer(BaseProducer):
-    """
-    Dummy event producer.
-    """
+    """Dummy event producer."""
 
-    def __init__(self, broker: str):
+    def __init__(self, broker: str) -> None:
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
 
@@ -98,9 +88,7 @@ class Producer(BaseProducer):
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,
     ) -> None:
-        """
-        Only logs the message, does not deliver.
-        """
+        """Only logs the message, does not deliver."""
         logger.info(
             f"Producing message {value=}.",
             extra={

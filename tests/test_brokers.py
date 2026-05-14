@@ -1,14 +1,11 @@
-"""
-Test broker implementation
-"""
+"""Test broker implementation."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from confluent_kafka import KafkaError  # type: ignore
-from pytest_mock import MockerFixture
 
 from eventbusk.brokers import Consumer, Producer
 from eventbusk.brokers.dummy import (
@@ -23,11 +20,14 @@ from eventbusk.brokers.kafka import (
 )
 from eventbusk.exceptions import ProducerError
 
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
 
 # Factories
 # ---------
 @pytest.mark.parametrize(
-    "broker,topic,group",
+    ("broker", "topic", "group"),
     [
         ("kafka://localhost:9092", "mytopic", "mygroup"),
         ("kafkas://username:password@localhost:9092", "mytopic", "mygroup"),
@@ -35,9 +35,7 @@ from eventbusk.exceptions import ProducerError
     ],
 )
 def test_consumer_factory(broker: str, topic: str, group: str) -> None:
-    """
-    Test consumer factory returns the correct instance for a given broker URI.
-    """
+    """Test consumer factory returns the correct instance for a given broker URI."""
     # Given broker uri, and optionally topic and group
 
     # When a consumer is instantiated with the broker and dummy topic, group
@@ -70,7 +68,7 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "broker,topic,group",
+    ("broker", "topic", "group"),
     [
         ("", "mytopic", "mygroup"),
         ("kafka://username:password@localhost:9092", "mytopic", "mygroup"),
@@ -83,16 +81,15 @@ def test_consumer_factory(broker: str, topic: str, group: str) -> None:
     ],
 )
 def test_consumer_factory_bad_broker(broker: str, topic: str, group: str) -> None:
-    """
-    Test if consumer factory errors out on an invalid broker uri
-    """
+    """Test if consumer factory errors out on an invalid broker uri."""
     # Given invalid broker uri
 
     # Then ensure it raises an exception
-    with pytest.raises(ValueError):
-        # When Consumer is instantiated
-        with Consumer(broker=broker, topic=topic, group=group) as consumer:
-            assert consumer is not None
+    with (
+        pytest.raises(ValueError),
+        Consumer(broker=broker, topic=topic, group=group) as consumer,
+    ):
+        assert consumer is not None
 
 
 @pytest.mark.parametrize(
@@ -104,9 +101,7 @@ def test_consumer_factory_bad_broker(broker: str, topic: str, group: str) -> Non
     ],
 )
 def test_producer_factory(broker: str) -> None:
-    """
-    Test if producer factory returns the correct producer.
-    """
+    """Test if producer factory returns the correct producer."""
     # Given a broker URI
 
     # When a producer is initialized
@@ -126,9 +121,7 @@ def test_producer_factory(broker: str) -> None:
     ["foobar://"],
 )
 def test_producer_factory_bad_broker(broker: str) -> None:
-    """
-    Test if producer factory raises exception on invalid broker URI
-    """
+    """Test if producer factory raises exception on invalid broker URI."""
     # Given a broker URI
 
     # Then ensure an exception is raised
@@ -140,17 +133,13 @@ def test_producer_factory_bad_broker(broker: str) -> None:
 # Dummy broker
 # -------------
 def test_dummy_producer() -> None:
-    """
-    Test basic dummy producer functionality
-    """
+    """Test basic dummy producer functionality."""
     producer = DummyProducer(broker="dummy://")
     producer.produce(topic="foo", value="lorem ipsum")
 
 
 def test_dummy_consumer() -> None:
-    """
-    Test basic dummy consumer functionality
-    """
+    """Test basic dummy consumer functionality."""
     consumer = DummyConsumer(broker="dummy://", topic="mytopic", group="mygroup")
     assert isinstance(consumer.broker, DummyBrokerURI)
     assert consumer.topic == "mytopic"
@@ -163,9 +152,7 @@ def test_dummy_consumer() -> None:
 # Kafka broker
 # -------------
 def test_kafka_broker_uri() -> None:
-    """
-    Test BrokerURI functionality
-    """
+    """Test BrokerURI functionality."""
     with pytest.raises(ValueError):
         KafkaBrokerURI.from_uri("foobar://localhost:9092")
 
@@ -177,11 +164,11 @@ def test_kafka_broker_uri() -> None:
 
 
 def test_kafka_producer(
-    mocker: MockerFixture, topic: str = "foo", value: str = "lorem ipsum"
+    mocker: MockerFixture,
+    topic: str = "foo",
+    value: str = "lorem ipsum",
 ) -> None:
-    """
-    Test producing to kafka
-    """
+    """Test producing to kafka."""
     # Given a Kafka producer that
     # mocks the underlying confluent producer so it doesn't try to connect
     cproducer = mocker.Mock()
@@ -192,7 +179,9 @@ def test_kafka_producer(
     producer.produce(topic=topic, value=value)
     # Then ensure underlying producer is called
     cproducer.produce.assert_called_once_with(
-        topic="foo", value=value, on_delivery=None
+        topic="foo",
+        value=value,
+        on_delivery=None,
     )
     cproducer.flush.assert_called_once()
 
@@ -203,17 +192,17 @@ def test_kafka_producer(
 
 
 def test_kafka_producer_error(
-    mocker: MockerFixture, topic: str = "foo", value: str = "lorem ipsum"
+    mocker: MockerFixture,
+    topic: str = "foo",
+    value: str = "lorem ipsum",
 ) -> None:
-    """
-    Test kafka producer error handling
-    """
+    """Test kafka producer error handling."""
     # Given a producer that errors out
     cproducer = mocker.Mock()
 
     def raise_exc(*args: Any, **kwargs: Any) -> None:
         raise KafkaError(  # pylint: disable=raising-non-exception
-            KafkaError.BROKER_NOT_AVAILABLE
+            KafkaError.BROKER_NOT_AVAILABLE,
         )
 
     cproducer.produce.side_effect = raise_exc
@@ -231,18 +220,20 @@ def test_kafka_producer_error(
 
 
 def test_kafka_consumer(
-    mocker: MockerFixture, message: str = "lorem ipsum", timeout: int = 0
+    mocker: MockerFixture,
+    message: str = "lorem ipsum",
+    timeout: int = 0,
 ) -> None:
-    """
-    Test basic kafka consumer functionality
-    """
+    """Test basic kafka consumer functionality."""
     # Given a Kafka consumer with a mocked underlying Confluent consumer
     # to avoid making a connection
     cconsumer = mocker.Mock()
     cconsumer.poll.return_value = message
     mocker.patch("eventbusk.brokers.kafka.CConsumer", return_value=cconsumer)
     with KafkaConsumer(
-        broker="kafka://localhost:9092", topic="mytopic", group="mygroup"
+        broker="kafka://localhost:9092",
+        topic="mytopic",
+        group="mygroup",
     ) as consumer:
         assert repr(consumer)
 

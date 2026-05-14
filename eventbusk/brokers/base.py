@@ -1,6 +1,4 @@
-"""
-Base interface for event consumer and producers.
-"""
+"""Base interface for event consumer and producers."""
 
 from __future__ import annotations
 
@@ -8,10 +6,12 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from contextlib import ContextDecorator
-from types import TracebackType
-from typing import Union
+from typing import TYPE_CHECKING, Self
 
 from confluent_kafka import cimpl  # type: ignore
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +25,20 @@ __all__ = [
 # Type hints
 # callback method `on_delivery` on the producer
 DeliveryCallBackT = Callable[..., None]
-MessageT = Union[str, bytes, cimpl.Message]  # pylint: disable=invalid-name
+MessageT = str | bytes | cimpl.Message  # pylint: disable=invalid-name
 
 
 class BaseBrokerURI(ABC):
-    """
-    Base class that defines the interface for all broker URIs
-    """
+    """Base class that defines the interface for all broker URIs."""
 
     @classmethod
     @abstractmethod
     def from_uri(cls, uri: str) -> BaseBrokerURI:
-        """
-        Return a instance created from a URI
-        """
+        """Return a instance created from a URI."""
 
 
 class BaseConsumer(ContextDecorator, ABC):
-    """
-    Base class for consumers
+    """Base class for consumers.
 
     All event consumers are exposed as a ContextDecorator, so it can be used via a
     `with` statement and any connections are automatically closed on exit.
@@ -61,7 +56,7 @@ class BaseConsumer(ContextDecorator, ABC):
             f"group='{self.group}')>"
         )
 
-    def __enter__(self) -> BaseConsumer:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(  # pylint: disable=too-many-positional-arguments
@@ -74,27 +69,21 @@ class BaseConsumer(ContextDecorator, ABC):
 
     @abstractmethod
     def poll(self, timeout: int) -> MessageT | None:  # type: ignore
-        """
-        Poll for a specified time in seconds for new messages
-        """
+        """Poll for a specified time in seconds for new messages."""
 
     @abstractmethod
     def ack(self, message: str) -> None:
-        """
-        Acknowledge successful consumption of a message.
-        """
+        """Acknowledge successful consumption of a message."""
 
 
 class BaseProducer(ABC):
-    """
-    Base class for producers
-    """
+    """Base class for producers."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(broker=*>"
 
     @abstractmethod
-    def __init__(self, broker: str):
+    def __init__(self, broker: str) -> None:
         super().__init__()
 
     @abstractmethod
@@ -107,11 +96,10 @@ class BaseProducer(ABC):
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,
     ) -> None:
-        """
-        Send a message on the specific topic.
+        """Send a message on the specific topic.
 
-        Arguments
-        ----------
+        Arguments:
+        ---------
         topic:
             The name of the topic
         value:
@@ -123,4 +111,5 @@ class BaseProducer(ABC):
             Useful for brokers like Kafka which do batches.
         fail_silently:
             If True, ignore all delivery errors.
+
         """

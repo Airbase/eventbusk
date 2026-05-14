@@ -1,5 +1,4 @@
-"""
-Run workers for the receivers via
+"""Run workers for the receivers via.
 
 $>eventbusk worker -A eventbus:bus
 
@@ -28,18 +27,14 @@ bus = EventBus(broker="kafka://localhost:9092")
 
 @dataclass
 class Fooey(Event):
-    """
-    First type of event
-    """
+    """First type of event."""
 
     foo_val: int
 
 
 @dataclass
 class Barzy(Event):
-    """
-    Second type of event
-    """
+    """Second type of event."""
 
     bar_val: str
 
@@ -51,15 +46,11 @@ bus.register_event("topic_bar", Barzy)
 # Consume an event
 @bus.receive(event_type=Fooey)
 def process_a(event: Event) -> None:
-    """
-    Consumer of Foeey events
-    """
+    """Consumer of Foeey events."""
     logger.info(f"Foo: {event}")
 
 
 @bus.receive(event_type=Barzy)
 def process_b(event: Event) -> None:
-    """
-    Consumer of Barzy events
-    """
+    """Consumer of Barzy events."""
     logger.info(f"Bar: {event}")
