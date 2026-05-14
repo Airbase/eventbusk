@@ -23,12 +23,6 @@ repos:
         args: [ --fix ]
     -   id: ruff-format
 
--   repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.3
-    hooks:
-    -   id: autoflake
-        args: [--in-place, --remove-all-unused-import]
-
 -   repo: https://github.com/pycqa/pylint
     rev: v4.0.5
     hooks:
