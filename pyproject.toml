@@ -7,7 +7,7 @@ name = "eventbusk"
 version = "0.1.6"
 description = "Event bus framework(with Kafka support)"
 authors = [{name = "Airbase Inc", email = "developers@airbase.io"}]
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "click>=8",
     "confluent-kafka>=2.3.0",
@@ -16,13 +16,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit==3.6.0",
-    "pytest==7.4.3",
-    "pytest-cov==4.1.0",
-    "pytest-mock==3.12.0",
-    "pytest-socket==0.6.0",
-    "pytest-xdist==3.5.0",
-    "taskipy>=1.12",
+    "pre-commit==4.6.0",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "pytest-mock==3.15.1",
+    "pytest-socket==0.7.0",
+    "pytest-xdist==3.8.0",
+    "taskipy>=1.14",
 ]
 
 [project.scripts]
@@ -35,7 +35,7 @@ src_paths = ["eventbusk"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -45,7 +45,7 @@ line-ending = "auto"
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.13"
 files = ["eventbusk"]
 allow_redefinition = false
 allow_untyped_globals = false
