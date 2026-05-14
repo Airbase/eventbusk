@@ -38,36 +38,52 @@ bus.send(foo)
 
 ## Contributing
 
-Pre-requisites include installing
+Pre-requisites:
 
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-You can start a Confluent Kafka server locally via docker by following
+You can start a Confluent Kafka server locally via Docker by following
 https://docs.confluent.io/platform/current/platform-quickstart.html
 
-Next setup the project locally as follows
+Set up the project locally:
 
 ```bash
 git clone git@github.com:Airbase/eventbusk.git
 cd eventbusk
+uv sync --extra dev
 pre-commit install
-source $(poetry env info -p)/bin/activate
-poetry install --no-root
-pip install --editable .
+```
+
+Run the tests:
+
+```bash
+uv run task test
+```
+
+Run the linter:
+
+```bash
+uv run task pylint
+```
+
+Format the code:
+
+```bash
+uv run task format
 ```
 
 Now you can run the example project consumers. Ensure the topics in the example are created first.
 
 ```bash
 cd examples
-eventbusk worker -A eventbus:bus
+uv run eventbusk worker -A eventbus:bus
 ```
 
-
-You can also publish
+You can also publish:
 
 ```bash
-python
+uv run python
 
 >>> from eventbus import bus, Fooey
 >>> bus.send(Fooey(foo_val="lorem ipsum"))

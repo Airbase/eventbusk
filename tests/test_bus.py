@@ -81,8 +81,8 @@ def test_bus_send(mocker: MockerFixture) -> None:
         """
         logger.info(error, event)
 
-    bus.send(foo_event, on_delivery)
-    bus.send(bar_event, on_delivery)
+    bus.send(foo_event, on_delivery=on_delivery)
+    bus.send(bar_event, on_delivery=on_delivery)
 
     # Then check the underlying producer was correctly called with the right event json
     assert bus is not None
@@ -136,8 +136,8 @@ def test_bus_receive() -> None:
 def test_hooks_default_to_empty_lists() -> None:
     """Hooks should default to empty lists when not provided."""
     bus = EventBus(broker=BROKER)
-    assert bus._before_receive_hooks == []
-    assert bus._after_receive_hooks == []
+    assert not bus._before_receive_hooks  # pylint: disable=protected-access
+    assert not bus._after_receive_hooks  # pylint: disable=protected-access
 
 
 def test_hooks_stored_from_init() -> None:
@@ -151,8 +151,10 @@ def test_hooks_stored_from_init() -> None:
         after_receive=[hook1],
     )
 
-    assert bus._before_receive_hooks == [hook1, hook2]
-    assert bus._after_receive_hooks == [hook1]
+    before = bus._before_receive_hooks  # pylint: disable=protected-access
+    after = bus._after_receive_hooks  # pylint: disable=protected-access
+    assert before == [hook1, hook2]
+    assert after == [hook1]
 
 
 def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
@@ -172,7 +174,7 @@ def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
     consumer, message = _make_mock_consumer({"first": 42})
     mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
 
-    foo_processor()
+    foo_processor()  # pylint: disable=no-value-for-parameter
 
     assert manager.mock_calls == [
         mocker.call.before_hook(),
@@ -201,7 +203,7 @@ def test_after_hooks_run_when_handler_raises(mocker: MockerFixture) -> None:
     consumer, _ = _make_mock_consumer({"first": 42})
     mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
 
-    foo_processor()
+    foo_processor()  # pylint: disable=no-value-for-parameter
 
     before_hook.assert_called_once()
     after_hook.assert_called_once()

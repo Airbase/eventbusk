@@ -17,6 +17,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.6.0",
+    "pylint>=4.0",
+    "ruff>=0.9",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",
@@ -28,21 +30,21 @@ dev = [
 [project.scripts]
 eventbusk = "eventbusk.cli:cli"
 
-[tool.isort]
-combine_as_imports = true
-profile = "black"
-src_paths = ["eventbusk"]
-
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+
+[tool.ruff.lint]
+extend-select = ["E501", "I"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
-
 
 [tool.mypy]
 python_version = "3.13"
@@ -87,7 +89,6 @@ warn_unused_ignores = true
 bad-functions = ["print"]
 jobs = 1
 max-complexity = 10
-suggestion-mode = "yes"
 
 [tool.pylint.format]
 max-line-length = 88
@@ -96,7 +97,8 @@ single-line-class-stmt = "no"
 single-line-if-stmt = "no"
 
 [tool.pylint.design]
-max-args = 5
+max-args = 6
+max-positional-arguments = 3
 max-attributes = 7
 max-bool-expr = 5
 max-branches = 15
@@ -155,6 +157,9 @@ directory = "htmlcov"
 output = "coverage.xml"
 
 [tool.taskipy.tasks]
+pylint = "pylint --extension-pkg-whitelist=confluent_kafka --load-plugins=pylint.extensions.bad_builtin --load-plugins=pylint.extensions.mccabe eventbusk tests"
+ruff = "ruff check"
+format = "ruff format"
 test = "pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail"
 coverage = "coverage report --rcfile=pyproject.toml"
 coverage_report = "coverage report --rcfile=pyproject.toml"

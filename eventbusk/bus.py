@@ -51,7 +51,7 @@ ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
 ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
 HookT = Callable[[], None]
-HooksT = list[HookT] | None
+HooksT = list[HookT] | None  # pylint: disable=invalid-name
 
 
 class EventBus:
@@ -91,6 +91,7 @@ class EventBus:
     def __init__(
         self,
         broker: str,
+        *,
         before_receive: HooksT = None,
         after_receive: HooksT = None,
     ):
@@ -140,6 +141,7 @@ class EventBus:
     def send(
         self,
         event: Event,
+        *,
         on_delivery: DeliveryCallBackT = None,
         flush: bool = True,
         fail_silently: bool = False,
@@ -210,7 +212,7 @@ class EventBus:
             }
 
             @wraps(func)
-            def wrapper() -> None:
+            def wrapper() -> None:  # pylint: disable=too-many-branches
                 with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
                     # TODO: Max-number-of-tasks
                     while True:

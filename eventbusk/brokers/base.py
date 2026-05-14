@@ -64,7 +64,7 @@ class BaseConsumer(ContextDecorator, ABC):
     def __enter__(self) -> BaseConsumer:
         return self
 
-    def __exit__(
+    def __exit__(  # pylint: disable=too-many-positional-arguments
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
@@ -98,10 +98,11 @@ class BaseProducer(ABC):
         super().__init__()
 
     @abstractmethod
-    def produce(  # type: ignore # pylint: disable=too-many-arguments
+    def produce(  # type: ignore
         self,
         topic: str,
         value: MessageT,
+        *,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

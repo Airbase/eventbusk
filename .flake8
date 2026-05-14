@@ -1,3 +1,0 @@
-[flake8]
-format = pylint
-max-line-length = 88

@@ -136,7 +136,7 @@ class Consumer(BaseConsumer):
 
     broker: BrokerURI
 
-    def __init__(self, broker: str, topic: str, group: str):
+    def __init__(self, broker: str, *, topic: str, group: str):
         super().__init__()
         self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
@@ -164,7 +164,7 @@ class Consumer(BaseConsumer):
         self._consumer.subscribe([self.topic])
         return self
 
-    def __exit__(
+    def __exit__(  # pylint: disable=too-many-positional-arguments
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
@@ -207,10 +207,11 @@ class Producer(BaseProducer):
         config = self.broker.default_config
         self._producer = CProducer(config)
 
-    def produce(  # pylint: disable=too-many-arguments
+    def produce(
         self,
         topic: str,
         value: MessageT,
+        *,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,
@@ -231,7 +232,7 @@ class Producer(BaseProducer):
             self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
             if flush:
                 self._producer.flush()
-        except KafkaError as exc:
+        except KafkaError as exc:  # pylint: disable=catching-non-exception
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
@@ -241,4 +242,4 @@ class Producer(BaseProducer):
                     #    attribute '__traceback__'
                 )
             else:
-                raise ProducerError from exc
+                raise ProducerError from exc  # pylint: disable=bad-exception-cause
