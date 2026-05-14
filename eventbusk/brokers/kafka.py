@@ -207,10 +207,11 @@ class Producer(BaseProducer):
         config = self.broker.default_config
         self._producer = CProducer(config)
 
-    def produce(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: MessageT,
+        *,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

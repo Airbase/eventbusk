@@ -98,10 +98,11 @@ class BaseProducer(ABC):
         super().__init__()
 
     @abstractmethod
-    def produce(  # type: ignore # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def produce(  # type: ignore # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: MessageT,
+        *,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,

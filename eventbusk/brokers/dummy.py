@@ -89,10 +89,11 @@ class Producer(BaseProducer):
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
 
-    def produce(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
         value: MessageT,
+        *,
         flush: bool = True,
         on_delivery: DeliveryCallBackT = None,
         fail_silently: bool = False,
