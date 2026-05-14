@@ -62,7 +62,7 @@ class Consumer(BaseConsumer):
 
     broker: BrokerURI
 
-    def __init__(self, broker: str, topic: str, group: str) -> None:
+    def __init__(self, broker: str, *, topic: str, group: str) -> None:
         super().__init__()
         self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
@@ -89,7 +89,7 @@ class Producer(BaseProducer):
         super().__init__(broker)
         self.broker = BrokerURI.from_uri(broker)
 
-    def produce(  # pylint: disable=too-many-arguments
+    def produce(
         self,
         topic: str,
         value: MessageT,

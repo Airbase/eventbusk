@@ -91,6 +91,7 @@ class EventBus:
     def __init__(
         self,
         broker: str,
+        *,
         before_receive: HooksT = None,
         after_receive: HooksT = None,
     ):
@@ -140,6 +141,7 @@ class EventBus:
     def send(
         self,
         event: Event,
+        *,
         on_delivery: DeliveryCallBackT = None,
         flush: bool = True,
         fail_silently: bool = False,

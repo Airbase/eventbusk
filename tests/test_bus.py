@@ -81,8 +81,8 @@ def test_bus_send(mocker: MockerFixture) -> None:
         """
         logger.info(error, event)
 
-    bus.send(foo_event, on_delivery)
-    bus.send(bar_event, on_delivery)
+    bus.send(foo_event, on_delivery=on_delivery)
+    bus.send(bar_event, on_delivery=on_delivery)
 
     # Then check the underlying producer was correctly called with the right event json
     assert bus is not None

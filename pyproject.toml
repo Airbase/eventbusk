@@ -97,7 +97,8 @@ single-line-class-stmt = "no"
 single-line-if-stmt = "no"
 
 [tool.pylint.design]
-max-args = 5
+max-args = 6
+max-positional-arguments = 3
 max-attributes = 7
 max-bool-expr = 5
 max-branches = 15
