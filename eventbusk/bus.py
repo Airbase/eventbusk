@@ -44,8 +44,8 @@ class EventJsonEncoder(json.JSONEncoder):
 
 type EventType = type[Event]
 type Receiver = Callable[[Event], None]
-type WrappedReceiver = Callable[[], None]
-type ReceiverWrapper = Callable[[Receiver], WrappedReceiver]
+type ReceiverWorker = Callable[[], None]
+type ReceiverDecorator = Callable[[Receiver], ReceiverWorker]
 type Hook = Callable[[], None]
 type Hooks = list[Hook] | None
 
@@ -107,7 +107,7 @@ class EventBus:
         # the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._receivers: set[WrappedReceiver] = set()
+        self._receivers: set[ReceiverWorker] = set()
 
     @staticmethod
     def to_fqn(event_type: EventType | Receiver) -> str:
@@ -170,7 +170,7 @@ class EventBus:
                 raise
 
     @property
-    def receivers(self) -> set[WrappedReceiver]:
+    def receivers(self) -> set[ReceiverWorker]:
         """Returns a set of receivers(consumers) of events."""
         return self._receivers
 
@@ -179,7 +179,7 @@ class EventBus:
         self,
         event_type: EventType,
         poll_timeout: int = 1,
-    ) -> ReceiverWrapper:
+    ) -> ReceiverDecorator:
         """Decorator to convert a function into an receiver.
 
         An receiver is a simple function that consumes a specific event on the event
@@ -192,7 +192,7 @@ class EventBus:
                 f"`bus.register_event('foo_topic', {event_type})`",
             )
 
-        def _outer(func: Receiver) -> WrappedReceiver:
+        def _outer(func: Receiver) -> ReceiverWorker:
             # TODO: Ensure group name does not clash
             group = self.to_fqn(func)
             receiver_fqn = self.to_fqn(func)
