@@ -36,15 +36,6 @@ repos:
         args: [--extension-pkg-whitelist=confluent_kafka, --load-plugins=pylint.extensions.bad_builtin, --load-plugins=pylint.extensions.mccabe]
         additional_dependencies: ["click", "confluent_kafka", "cotyledon", "pytest", "pytest_mock"]
 
--   repo: https://github.com/pycqa/isort
-    rev: 8.0.1
-    hooks:
-      - id: isort
-        name: isort (python)
-      - id: isort
-        name: isort (pyi)
-        types: [pyi]
-
 
 # -   repo: https://github.com/pre-commit/mirrors-mypy
 #     rev: v0.902

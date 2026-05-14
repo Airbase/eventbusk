@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, Union
 
 from confluent_kafka import (  # type: ignore
     Consumer as CConsumer,
+)
+from confluent_kafka import (
     KafkaError,
+)
+from confluent_kafka import (
     Producer as CProducer,
 )
 

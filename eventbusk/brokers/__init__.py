@@ -7,8 +7,10 @@ from __future__ import annotations
 import logging
 
 from .base import BaseConsumer, BaseProducer, DeliveryCallBackT
-from .dummy import Consumer as DummyConsumer, Producer as DummyProducer
-from .kafka import Consumer as KafkaConsumer, Producer as KafkaProducer
+from .dummy import Consumer as DummyConsumer
+from .dummy import Producer as DummyProducer
+from .kafka import Consumer as KafkaConsumer
+from .kafka import Producer as KafkaProducer
 
 logger = logging.getLogger(__name__)
 
