@@ -2,6 +2,7 @@
 Dummy broker for use cases where a real implementation of the event bus is not
 required, eg. CI pipelines.
 """
+
 from __future__ import annotations
 
 import logging

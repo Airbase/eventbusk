@@ -1,6 +1,7 @@
 """
 Base interface for event consumer and producers.
 """
+
 from __future__ import annotations
 
 import logging
@@ -90,7 +91,7 @@ class BaseProducer(ABC):
     """
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}(" f"broker=*>"
+        return f"<{self.__class__.__name__}(broker=*>"
 
     @abstractmethod
     def __init__(self, broker: str):

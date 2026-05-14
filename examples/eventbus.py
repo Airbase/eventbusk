@@ -9,6 +9,7 @@ To send an event on the bus you can open a separate python shell
 >>> foo=Foo(foo=1)
 >>> bus.send(foo)
 """
+
 import logging
 from dataclasses import dataclass
 
