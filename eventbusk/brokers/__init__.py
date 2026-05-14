@@ -27,7 +27,7 @@ def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:
     raise ValueError("Unsupported broker.")
 
 
-Consumer = consumer_factory
+Consumer = consumer_factory  # pylint: disable=invalid-name
 
 
 def producer_factory(broker: str) -> BaseProducer:
@@ -41,4 +41,4 @@ def producer_factory(broker: str) -> BaseProducer:
     raise ValueError("Unsupported broker.")
 
 
-Producer = producer_factory
+Producer = producer_factory  # pylint: disable=invalid-name

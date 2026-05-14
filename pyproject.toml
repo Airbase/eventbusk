@@ -87,7 +87,6 @@ warn_unused_ignores = true
 bad-functions = ["print"]
 jobs = 1
 max-complexity = 10
-suggestion-mode = "yes"
 
 [tool.pylint.format]
 max-line-length = 88

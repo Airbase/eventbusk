@@ -51,7 +51,7 @@ ReceiverT = Callable[[Event], None]
 ReceiverWrappedT = Callable[[], None]
 ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
 HookT = Callable[[], None]
-HooksT = list[HookT] | None
+HooksT = list[HookT] | None  # pylint: disable=invalid-name
 
 
 class EventBus:
@@ -210,7 +210,7 @@ class EventBus:
             }
 
             @wraps(func)
-            def wrapper() -> None:
+            def wrapper() -> None:  # pylint: disable=too-many-branches
                 with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
                     # TODO: Max-number-of-tasks
                     while True:

@@ -207,7 +207,7 @@ class Producer(BaseProducer):
         config = self.broker.default_config
         self._producer = CProducer(config)
 
-    def produce(  # pylint: disable=too-many-arguments
+    def produce(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         topic: str,
         value: MessageT,
@@ -231,7 +231,7 @@ class Producer(BaseProducer):
             self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
             if flush:
                 self._producer.flush()
-        except KafkaError as exc:
+        except KafkaError as exc:  # pylint: disable=catching-non-exception
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
@@ -241,4 +241,4 @@ class Producer(BaseProducer):
                     #    attribute '__traceback__'
                 )
             else:
-                raise ProducerError from exc
+                raise ProducerError from exc  # pylint: disable=bad-exception-cause

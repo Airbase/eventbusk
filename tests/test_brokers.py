@@ -212,7 +212,7 @@ def test_kafka_producer_error(
     cproducer = mocker.Mock()
 
     def raise_exc(*args: Any, **kwargs: Any) -> None:
-        raise KafkaError(KafkaError.BROKER_NOT_AVAILABLE)
+        raise KafkaError(KafkaError.BROKER_NOT_AVAILABLE)  # pylint: disable=raising-non-exception
 
     cproducer.produce.side_effect = raise_exc
     mocker.patch("eventbusk.brokers.kafka.CProducer", return_value=cproducer)
