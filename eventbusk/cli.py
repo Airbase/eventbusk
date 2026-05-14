@@ -1,22 +1,23 @@
-"""
-Command Line Interface
-"""
+"""Command Line Interface."""
 
 from __future__ import annotations
 
 import importlib
 import logging
-import os
 import sys
 import threading
-from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
+from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 import click
 import cotyledon  # type: ignore
 
 from .bus import EventBus
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def cwd_in_path() -> Generator[str | None]:
     """Context adding the current working directory to sys.path."""
-    cwd = os.getcwd()
+    cwd = str(Path.cwd())
     if cwd in sys.path:
         yield None
     else:
@@ -37,18 +38,18 @@ def cwd_in_path() -> Generator[str | None]:
 
 
 def find_app(app: str, attr_name: str = "app") -> EventBus:
-    """
-    Import an EventBus instance based on a path name.
+    """Import an EventBus instance based on a path name.
 
-    Arguments
-    ----------
+    Arguments:
+    ---------
     app: str
         Path to a module containing an EventBus instance.
 
-    Keyword Arguments
-    ------------------
+    Keyword Arguments:
+    -----------------
     attr_name: str
        Name of the EventBus instance inside the app. Defaults to 'app'.
+
     """
     if ":" in app:
         module_name, attr_name = app.split(":")
@@ -59,13 +60,15 @@ def find_app(app: str, attr_name: str = "app") -> EventBus:
         module = importlib.import_module(module_name, package=None)
 
     if not isinstance(module, ModuleType):
-        raise AttributeError(f"Module f{module_name} not found or cannot be imported")
+        msg = f"Module f{module_name} not found or cannot be imported"
+        raise AttributeError(msg)
 
     # Find bus instance within the module
     found = getattr(module, attr_name)
     if not isinstance(found, EventBus):
+        msg = f"EventBus instance {attr_name} not found in {module_name}"
         raise AttributeError(
-            f"EventBus instance {attr_name} not found in {module_name}"
+            msg,
         )
 
     return found
@@ -102,9 +105,7 @@ class Worker(cotyledon.Service):  # type: ignore
 @cli.command()
 @click.option("--app", "-A", help="Path to EventBus instance. eg. 'mymodule:app'")
 def worker(app: str) -> None:
-    """
-    Start consumer workers
-    """
+    """Start consumer workers."""
     bus = find_app(app)
     receivers = bus.receivers
     if not receivers:

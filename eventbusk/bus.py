@@ -1,6 +1,4 @@
-"""
-EventBus implementation
-"""
+"""EventBus implementation."""
 
 from __future__ import annotations
 
@@ -21,24 +19,22 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Event(ABC):
-    """
-    Every new event must inherit this class and should be a dataclass.
+    """Every new event must inherit this class and should be a dataclass.
 
-    Example
+    Example:
     -------
     @dataclass
     class MyEvent(Event):
         foo: int
         bar: str
+
     """
 
     event_id: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
 
 
 class EventJsonEncoder(json.JSONEncoder):
-    """
-    JSON encoder that additionally converts uuid to str.
-    """
+    """JSON encoder that additionally converts uuid to str."""
 
     def default(self, o):
         if isinstance(o, uuid.UUID):
@@ -55,8 +51,7 @@ HooksT = list[HookT] | None  # pylint: disable=invalid-name
 
 
 class EventBus:
-    """
-    An EventBus is an a concrete instance of an event bus.
+    """An EventBus is an a concrete instance of an event bus.
 
     It is akin to a WSGI Application, or Celery instance.  A project might contain
     multiple instances of the bus connected to different brokers.
@@ -94,7 +89,7 @@ class EventBus:
         *,
         before_receive: HooksT = None,
         after_receive: HooksT = None,
-    ):
+    ) -> None:
         self.broker = broker
         self._before_receive_hooks: list[HookT] = self._to_hook_list(before_receive)
         self._after_receive_hooks: list[HookT] = self._to_hook_list(after_receive)
@@ -116,15 +111,13 @@ class EventBus:
 
     @staticmethod
     def to_fqn(event_type: EventT | ReceiverT) -> str:
-        """
-        Returns 'fully qualified name' of an event class or an receiver, to identify
+        """Returns 'fully qualified name' of an event class or an receiver, to identify
         them uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
     def register_event(self, topic: str, event_type: EventT) -> None:
-        """
-        Register an event to a bus.
+        """Register an event to a bus.
 
         Each event is only linked to a single topic.
         """
@@ -146,9 +139,7 @@ class EventBus:
         flush: bool = True,
         fail_silently: bool = False,
     ) -> None:
-        """
-        Send an event on the bus.
-        """
+        """Send an event on the bus."""
         if self.producer is None:
             self.producer = Producer(broker=self.broker)
 
@@ -159,9 +150,12 @@ class EventBus:
 
         try:
             self.producer.produce(
-                topic=topic, value=data, flush=flush, on_delivery=on_delivery
+                topic=topic,
+                value=data,
+                flush=flush,
+                on_delivery=on_delivery,
             )
-        except ProducerError as exc:
+        except ProducerError:
             if fail_silently:
                 logger.warning(
                     "Error producing event.",
@@ -173,21 +167,20 @@ class EventBus:
                     exc_info=True,
                 )
             else:
-                raise exc
+                raise
 
     @property
     def receivers(self) -> set[ReceiverWrappedT]:
-        """
-        Returns a set of receivers(consumers) of events.
-        """
+        """Returns a set of receivers(consumers) of events."""
         return self._receivers
 
     # TODO: add group parameter?
     def receive(  # pylint: disable=too-complex
-        self, event_type: EventT, poll_timeout: int = 1
+        self,
+        event_type: EventT,
+        poll_timeout: int = 1,
     ) -> ReceivedOuterT:
-        """
-        Decorator to convert a function into an receiver.
+        """Decorator to convert a function into an receiver.
 
         An receiver is a simple function that consumes a specific event on the event
         bus.
@@ -196,7 +189,7 @@ class EventBus:
         if event_fqn not in self._event_to_topic:
             raise UnknownEvent(
                 "Register the event to a topic using "
-                f"`bus.register_event('foo_topic', {event_type})`"
+                f"`bus.register_event('foo_topic', {event_type})`",
             )
 
         def _outer(func: ReceiverT) -> ReceiverWrappedT:
@@ -246,7 +239,7 @@ class EventBus:
                                     msg,
                                     extra={
                                         **log_context,
-                                        **{"error": msg_error},
+                                        "error": msg_error,
                                     },
                                 )
                                 self.sleep(seconds=1, message=msg)
@@ -265,7 +258,7 @@ class EventBus:
                                 except ValueError:
                                     logger.exception(
                                         ("Error while converting str -> UUID "),
-                                        extra={**log_context, **{"data": event_data}},
+                                        extra={**log_context, "data": event_data},
                                         exc_info=True,
                                     )
                             else:
@@ -274,7 +267,7 @@ class EventBus:
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]
                             event = event_type(**event_data)  # type: ignore
-                            setattr(event, "event_id", event_id)
+                            event.event_id = event_id
 
                             for hook in self._before_receive_hooks:
                                 try:
@@ -295,7 +288,7 @@ class EventBus:
                                         "Error while processing event. "
                                         "topic might be blocked"
                                     ),
-                                    extra={**log_context, **{"data": event}},
+                                    extra={**log_context, "data": event},
                                     exc_info=True,
                                 )
                                 success = False
@@ -338,8 +331,6 @@ class EventBus:
 
     @staticmethod
     def sleep(seconds: int = 1, message: str = "") -> None:
-        """
-        Helper to sleep and log a custom message
-        """
+        """Helper to sleep and log a custom message."""
         logger.info(f"Sleeping for {seconds}s. {message}")
         time.sleep(seconds)

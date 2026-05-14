@@ -1,6 +1,4 @@
-"""
-Custom exceptions
-"""
+"""Custom exceptions."""
 
 from __future__ import annotations
 
@@ -13,30 +11,20 @@ __all__ = [
 
 
 class EventBusError(Exception):
-    """
-    Base of exceptions raised by the bus.
-    """
+    """Base of exceptions raised by the bus."""
 
 
 class UnknownEvent(EventBusError):
-    """
-    Raised when an receiver is created for an event the bus does not recognize.
-    """
+    """Raised when an receiver is created for an event the bus does not recognize."""
 
 
 class AlreadyRegistered(EventBusError):
-    """
-    Raised when an event is registered more than once to the bus.
-    """
+    """Raised when an event is registered more than once to the bus."""
 
 
 class ProducerError(EventBusError):
-    """
-    Raised during production of an event.
-    """
+    """Raised during production of an event."""
 
 
 class ConsumerError(EventBusError):
-    """
-    Raised during consumption of an event
-    """
+    """Raised during consumption of an event."""
