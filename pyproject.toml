@@ -1,29 +1,31 @@
 [build-system]
-requires = ["poetry-core>=1.2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "eventbusk"
 version = "0.1.6"
 description = "Event bus framework(with Kafka support)"
-authors = ["Airbase Inc <developers@airbase.io>"]
+authors = [{name = "Airbase Inc", email = "developers@airbase.io"}]
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8",
+    "confluent-kafka>=2.3.0",
+    "cotyledon>=1.7",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-click = ">=8"
-confluent-kafka = ">=2.3.0"
-cotyledon = ">=1.7"
+[project.optional-dependencies]
+dev = [
+    "pre-commit==3.6.0",
+    "pytest==7.4.3",
+    "pytest-cov==4.1.0",
+    "pytest-mock==3.12.0",
+    "pytest-socket==0.6.0",
+    "pytest-xdist==3.5.0",
+    "taskipy>=1.12",
+]
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = "3.6.0"
-pytest = "7.4.3"
-pytest-cov = "4.1.0"
-pytest-mock = "3.12.0"
-pytest-socket = "0.6.0"
-pytest-xdist = "3.5.0"
-taskipy = ">=1.12"
-
-[tool.poetry.scripts]
+[project.scripts]
 eventbusk = "eventbusk.cli:cli"
 
 [tool.isort]
