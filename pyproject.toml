@@ -37,6 +37,9 @@ target-version = "py313"
 [tool.ruff.lint]
 extend-select = ["E501", "I"]
 
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
