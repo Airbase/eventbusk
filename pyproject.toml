@@ -17,6 +17,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.6.0",
+    "pylint>=4.0",
+    "ruff>=0.9",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",
@@ -154,6 +156,9 @@ directory = "htmlcov"
 output = "coverage.xml"
 
 [tool.taskipy.tasks]
+pylint = "pylint --extension-pkg-whitelist=confluent_kafka --load-plugins=pylint.extensions.bad_builtin --load-plugins=pylint.extensions.mccabe eventbusk tests"
+ruff = "ruff check"
+format = "ruff format"
 test = "pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail"
 coverage = "coverage report --rcfile=pyproject.toml"
 coverage_report = "coverage report --rcfile=pyproject.toml"
