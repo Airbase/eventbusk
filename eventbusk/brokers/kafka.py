@@ -18,7 +18,7 @@ from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from .base import DeliveryCallBackT, MessageT
+    from .base import DeliveryCallback, Message
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ __all__ = [
     "Producer",
 ]
 
-ConfigT = dict[str, bool | int | str]
+type Config = dict[str, bool | int | str]
 
 
 @dataclass
@@ -99,9 +99,9 @@ class BrokerURI(BaseBrokerURI):
         )
 
     @property
-    def default_config(self) -> ConfigT:
+    def default_config(self) -> Config:
         """Default configuration for consumer or producer instances."""
-        props: ConfigT = {
+        props: Config = {
             "bootstrap.servers": f"{self.host}:{self.port}",
         }
         if self.sasl:
@@ -177,11 +177,11 @@ class Consumer(BaseConsumer):
                 },
             )
 
-    def poll(self, timeout: int) -> MessageT | None:
+    def poll(self, timeout: int) -> Message | None:
         """Poll the topic for new messages."""
         return self._consumer.poll(timeout)
 
-    def ack(self, message: MessageT | None) -> None:
+    def ack(self, message: Message | None) -> None:
         """Acknowledge the message by explicitly committing."""
         self._consumer.commit(message=message)
 
@@ -198,10 +198,10 @@ class Producer(BaseProducer):
     def produce(
         self,
         topic: str,
-        value: MessageT,
+        value: Message,
         *,
         flush: bool = True,
-        on_delivery: DeliveryCallBackT = None,
+        on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
     ) -> None:
         """Sends the message to a Kafka topic."""

@@ -24,8 +24,8 @@ __all__ = [
 
 # Type hints
 # callback method `on_delivery` on the producer
-DeliveryCallBackT = Callable[..., None]
-MessageT = str | bytes | cimpl.Message  # pylint: disable=invalid-name
+type DeliveryCallback = Callable[..., None]
+type Message = str | bytes | cimpl.Message
 
 
 class BaseBrokerURI(ABC):
@@ -68,7 +68,7 @@ class BaseConsumer(ContextDecorator, ABC):
         pass
 
     @abstractmethod
-    def poll(self, timeout: int) -> MessageT | None:  # type: ignore
+    def poll(self, timeout: int) -> Message | None:  # type: ignore
         """Poll for a specified time in seconds for new messages."""
 
     @abstractmethod
@@ -90,10 +90,10 @@ class BaseProducer(ABC):
     def produce(  # type: ignore
         self,
         topic: str,
-        value: MessageT,
+        value: Message,
         *,
         flush: bool = True,
-        on_delivery: DeliveryCallBackT = None,
+        on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
     ) -> None:
         """Send a message on the specific topic.

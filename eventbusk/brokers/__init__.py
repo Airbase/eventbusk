@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import logging
 
-from .base import BaseConsumer, BaseProducer, DeliveryCallBackT
+from .base import BaseConsumer, BaseProducer, DeliveryCallback
 from .dummy import Consumer as DummyConsumer, Producer as DummyProducer
 from .kafka import Consumer as KafkaConsumer, Producer as KafkaProducer
 
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["Consumer", "DeliveryCallBackT", "Producer"]
+__all__ = ["Consumer", "DeliveryCallback", "Producer"]
 
 
 def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:

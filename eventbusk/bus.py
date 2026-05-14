@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from functools import wraps
 
-from .brokers import Consumer, DeliveryCallBackT, Producer
+from .brokers import Consumer, DeliveryCallback, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, ProducerError, UnknownEvent
 
 logger = logging.getLogger(__name__)
@@ -42,12 +42,12 @@ class EventJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-EventT = type[Event]
-ReceiverT = Callable[[Event], None]
-ReceiverWrappedT = Callable[[], None]
-ReceivedOuterT = Callable[[ReceiverT], ReceiverWrappedT]
-HookT = Callable[[], None]
-HooksT = list[HookT] | None  # pylint: disable=invalid-name
+type EventType = type[Event]
+type Receiver = Callable[[Event], None]
+type ReceiverWorker = Callable[[], None]
+type ReceiverDecorator = Callable[[Receiver], ReceiverWorker]
+type Hook = Callable[[], None]
+type Hooks = list[Hook] | None
 
 
 class EventBus:
@@ -78,7 +78,7 @@ class EventBus:
     """
 
     @staticmethod
-    def _to_hook_list(hooks: HooksT) -> list[HookT]:
+    def _to_hook_list(hooks: Hooks) -> list[Hook]:
         if hooks is None:
             return []
         return list(hooks)
@@ -87,12 +87,12 @@ class EventBus:
         self,
         broker: str,
         *,
-        before_receive: HooksT = None,
-        after_receive: HooksT = None,
+        before_receive: Hooks = None,
+        after_receive: Hooks = None,
     ) -> None:
         self.broker = broker
-        self._before_receive_hooks: list[HookT] = self._to_hook_list(before_receive)
-        self._after_receive_hooks: list[HookT] = self._to_hook_list(after_receive)
+        self._before_receive_hooks: list[Hook] = self._to_hook_list(before_receive)
+        self._after_receive_hooks: list[Hook] = self._to_hook_list(after_receive)
         # Lazily create on first send
         # This is done to avoid issues forking, causing flush to fail.
         # https://github.com/confluentinc/confluent-kafka-python/issues/1122
@@ -107,16 +107,16 @@ class EventBus:
         # the event class.
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
-        self._receivers: set[ReceiverWrappedT] = set()
+        self._receivers: set[ReceiverWorker] = set()
 
     @staticmethod
-    def to_fqn(event_type: EventT | ReceiverT) -> str:
+    def to_fqn(event_type: EventType | Receiver) -> str:
         """Returns 'fully qualified name' of an event class or an receiver, to identify
         them uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
 
-    def register_event(self, topic: str, event_type: EventT) -> None:
+    def register_event(self, topic: str, event_type: EventType) -> None:
         """Register an event to a bus.
 
         Each event is only linked to a single topic.
@@ -135,7 +135,7 @@ class EventBus:
         self,
         event: Event,
         *,
-        on_delivery: DeliveryCallBackT = None,
+        on_delivery: DeliveryCallback = None,
         flush: bool = True,
         fail_silently: bool = False,
     ) -> None:
@@ -170,16 +170,16 @@ class EventBus:
                 raise
 
     @property
-    def receivers(self) -> set[ReceiverWrappedT]:
+    def receivers(self) -> set[ReceiverWorker]:
         """Returns a set of receivers(consumers) of events."""
         return self._receivers
 
     # TODO: add group parameter?
     def receive(  # pylint: disable=too-complex
         self,
-        event_type: EventT,
+        event_type: EventType,
         poll_timeout: int = 1,
-    ) -> ReceivedOuterT:
+    ) -> ReceiverDecorator:
         """Decorator to convert a function into an receiver.
 
         An receiver is a simple function that consumes a specific event on the event
@@ -192,7 +192,7 @@ class EventBus:
                 f"`bus.register_event('foo_topic', {event_type})`",
             )
 
-        def _outer(func: ReceiverT) -> ReceiverWrappedT:
+        def _outer(func: Receiver) -> ReceiverWorker:
             # TODO: Ensure group name does not clash
             group = self.to_fqn(func)
             receiver_fqn = self.to_fqn(func)

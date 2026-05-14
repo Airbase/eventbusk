@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 
 if TYPE_CHECKING:
-    from .base import DeliveryCallBackT, MessageT
+    from .base import DeliveryCallback, Message
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,11 @@ class Consumer(BaseConsumer):
         self.topic = topic
         self.group = group
 
-    def poll(self, timeout: int = 1) -> MessageT | None:
+    def poll(self, timeout: int = 1) -> Message | None:
         """Sleeps for the required timeout, and returns no message."""
         time.sleep(timeout)
 
-    def ack(self, message: MessageT) -> None:
+    def ack(self, message: Message) -> None:
         """Acknowledge event."""
 
 
@@ -82,10 +82,10 @@ class Producer(BaseProducer):
     def produce(
         self,
         topic: str,
-        value: MessageT,
+        value: Message,
         *,
         flush: bool = True,
-        on_delivery: DeliveryCallBackT = None,
+        on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
     ) -> None:
         """Only logs the message, does not deliver."""
