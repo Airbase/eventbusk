@@ -15,7 +15,7 @@ __all__ = ["Consumer", "DeliveryCallBackT", "Producer"]
 
 
 def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:
-    """Return a consumer instance for the specied broker url."""
+    """Return a consumer instance for the specified broker url."""
     if broker.startswith("kafka"):
         return KafkaConsumer(broker=broker, topic=topic, group=group)
     if broker.startswith("dummy"):
@@ -27,7 +27,7 @@ Consumer = consumer_factory  # pylint: disable=invalid-name
 
 
 def producer_factory(broker: str) -> BaseProducer:
-    """Return a producer instance for the specied broker url."""
+    """Return a producer instance for the specified broker url."""
     if broker.startswith("kafka"):
         return KafkaProducer(broker)
     if broker.startswith("dummy"):
