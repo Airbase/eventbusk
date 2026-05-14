@@ -39,6 +39,9 @@ src_paths = ["eventbusk"]
 line-length = 88
 target-version = "py313"
 
+[tool.ruff.lint]
+extend-select = ["E501"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
