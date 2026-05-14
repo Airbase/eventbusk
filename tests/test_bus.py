@@ -151,8 +151,10 @@ def test_hooks_stored_from_init() -> None:
         after_receive=[hook1],
     )
 
-    assert bus._before_receive_hooks == [hook1, hook2]  # pylint: disable=protected-access
-    assert bus._after_receive_hooks == [hook1]  # pylint: disable=protected-access
+    before = bus._before_receive_hooks  # pylint: disable=protected-access
+    after = bus._after_receive_hooks  # pylint: disable=protected-access
+    assert before == [hook1, hook2]
+    assert after == [hook1]
 
 
 def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
