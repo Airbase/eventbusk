@@ -124,78 +124,150 @@ def test_bus_receive() -> None:
     assert bar_processor in bus.receivers
 
 
-def test_hooks_default_to_empty_lists() -> None:
-    """Hooks should default to empty lists when not provided."""
+class _StaleConnectionError(Exception):
+    """Stand-in for a recoverable, connection-shaped error."""
+
+
+class _StaleConnectionSubError(_StaleConnectionError):
+    """A subclass of a registered exception type."""
+
+
+def test_on_error_handlers_default_to_empty_dict() -> None:
+    """on_error handlers should default to an empty dict when not provided."""
     bus = EventBus(broker=BROKER)
-    assert not bus._before_receive_hooks  # pylint: disable=protected-access
-    assert not bus._after_receive_hooks  # pylint: disable=protected-access
+    assert not bus._on_error_handlers  # pylint: disable=protected-access
 
 
-def test_hooks_stored_from_init() -> None:
-    """Hooks passed at init should be stored as lists."""
-    hook1 = MagicMock()
-    hook2 = MagicMock()
+def test_on_error_handlers_stored_from_init() -> None:
+    """on_error handlers passed at init should be stored as a dict."""
+    handler = MagicMock()
 
-    bus = EventBus(
-        broker=BROKER,
-        before_receive=[hook1, hook2],
-        after_receive=[hook1],
-    )
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: handler})
 
-    before = bus._before_receive_hooks  # pylint: disable=protected-access
-    after = bus._after_receive_hooks  # pylint: disable=protected-access
-    assert before == [hook1, hook2]
-    assert after == [hook1]
+    handlers = bus._on_error_handlers  # pylint: disable=protected-access
+    assert handlers == {_StaleConnectionError: handler}
 
 
-def test_hooks_execute_in_order_around_handler(mocker: MockerFixture) -> None:
-    """before_receive hooks run before the handler, after_receive hooks run after."""
-    manager = mocker.Mock()
-    bus = EventBus(
-        broker=BROKER,
-        before_receive=[manager.before_hook],
-        after_receive=[manager.after_hook],
-    )
+def test_on_error_handler_not_called_when_handler_succeeds(
+    mocker: MockerFixture,
+) -> None:
+    """on_error handlers must not run on the successful path (they're for
+    recovery, not per-message cleanup).
+    """
+    on_error_handler = mocker.Mock()
+
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: on_error_handler})
     bus.register_event("first_topic", Foo)
 
     @bus.receive(event_type=Foo)
     def foo_processor(event: Event) -> None:
-        manager.handler(event)
+        pass
 
     consumer, message = _make_mock_consumer({"first": 42})
     mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
 
     foo_processor()  # pylint: disable=no-value-for-parameter
 
-    assert manager.mock_calls == [
-        mocker.call.before_hook(),
-        mocker.call.handler(mocker.ANY),
-        mocker.call.after_hook(),
-    ]
+    on_error_handler.assert_not_called()
     consumer.ack.assert_called_once_with(message=message)
 
 
-def test_after_hooks_run_when_handler_raises(mocker: MockerFixture) -> None:
-    """after_receive hooks run even when the handler raises; message is not acked."""
-    before_hook = mocker.Mock()
-    after_hook = mocker.Mock()
+def test_on_error_handler_not_called_for_unregistered_exception_type(
+    mocker: MockerFixture,
+) -> None:
+    """A handler registered for one exception type must not run when the
+    receiver raises an unrelated exception type, so unrelated receiver bugs
+    don't pay the recovery cost.
+    """
+    on_error_handler = mocker.Mock()
 
-    bus = EventBus(
-        broker=BROKER,
-        before_receive=[before_hook],
-        after_receive=[after_hook],
-    )
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: on_error_handler})
     bus.register_event("first_topic", Foo)
 
     @bus.receive(event_type=Foo)
     def foo_processor(event: Event) -> None:
-        raise ValueError("handler error")
+        raise ValueError("unrelated handler bug")
 
     consumer, _ = _make_mock_consumer({"first": 42})
     mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
 
     foo_processor()  # pylint: disable=no-value-for-parameter
 
-    before_hook.assert_called_once()
-    after_hook.assert_called_once()
+    on_error_handler.assert_not_called()
+    consumer.ack.assert_not_called()
+
+
+def test_on_error_handler_called_with_matching_exception(
+    mocker: MockerFixture,
+) -> None:
+    """A handler registered for an exception type runs, and is passed the raised
+    exception instance, when the receiver raises exactly that type. Message is
+    not acked, so it will be redelivered.
+    """
+    on_error_handler = mocker.Mock()
+
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: on_error_handler})
+    bus.register_event("first_topic", Foo)
+
+    raised = _StaleConnectionError("connection is closed")
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        raise raised
+
+    consumer, _ = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    on_error_handler.assert_called_once_with(raised)
+    consumer.ack.assert_not_called()
+
+
+def test_on_error_handler_not_called_for_subclass_of_registered_exception(
+    mocker: MockerFixture,
+) -> None:
+    """Matching is by exact type, not subclass: a handler registered for a
+    base exception type does not run when the receiver raises a subclass of
+    it. Callers that need to handle a subclass must register it explicitly.
+    """
+    on_error_handler = mocker.Mock()
+
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: on_error_handler})
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        raise _StaleConnectionSubError("connection is closed")
+
+    consumer, _ = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    on_error_handler.assert_not_called()
+    consumer.ack.assert_not_called()
+
+
+def test_failing_on_error_handler_does_not_crash_receiver(
+    mocker: MockerFixture,
+) -> None:
+    """A raising on_error handler must not crash the receiver loop; the message
+    is still left unacked for redelivery.
+    """
+    failing_handler = mocker.Mock(side_effect=RuntimeError("handler boom"))
+
+    bus = EventBus(broker=BROKER, on_error={_StaleConnectionError: failing_handler})
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        raise _StaleConnectionError("connection is closed")
+
+    consumer, _ = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    failing_handler.assert_called_once()
     consumer.ack.assert_not_called()
