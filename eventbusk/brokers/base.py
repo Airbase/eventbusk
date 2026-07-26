@@ -8,7 +8,7 @@ from collections.abc import Callable
 from contextlib import ContextDecorator
 from typing import TYPE_CHECKING, Self
 
-from confluent_kafka import cimpl  # type: ignore
+from confluent_kafka import cimpl
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -25,7 +25,7 @@ __all__ = [
 # Type hints
 # callback method `on_delivery` on the producer
 type DeliveryCallback = Callable[..., None]
-type Message = str | bytes | cimpl.Message
+type Message = bytes | cimpl.Message
 
 
 class BaseBrokerURI(ABC):
@@ -68,11 +68,11 @@ class BaseConsumer(ContextDecorator, ABC):
         pass
 
     @abstractmethod
-    def poll(self, timeout: int) -> Message | None:  # type: ignore
+    def poll(self, timeout: int) -> Message | None:
         """Poll for a specified time in seconds for new messages."""
 
     @abstractmethod
-    def ack(self, message: str) -> None:
+    def ack(self, message: Message | None) -> None:
         """Acknowledge successful consumption of a message."""
 
 
@@ -87,10 +87,10 @@ class BaseProducer(ABC):
         super().__init__()
 
     @abstractmethod
-    def produce(  # type: ignore
+    def produce(  # pylint: disable=too-many-arguments
         self,
         topic: str,
-        value: Message,
+        value: bytes,
         *,
         flush: bool = True,
         on_delivery: DeliveryCallback = None,

@@ -11,7 +11,7 @@ from .kafka import Consumer as KafkaConsumer, Producer as KafkaProducer
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["Consumer", "DeliveryCallback", "Producer"]
+__all__ = ["BaseProducer", "Consumer", "DeliveryCallback", "Producer"]
 
 
 def consumer_factory(broker: str, topic: str, group: str) -> BaseConsumer:

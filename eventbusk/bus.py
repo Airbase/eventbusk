@@ -10,8 +10,9 @@ from abc import ABC
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from functools import wraps
+from typing import Any
 
-from .brokers import Consumer, DeliveryCallback, Producer
+from .brokers import BaseProducer, Consumer, DeliveryCallback, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, ProducerError, UnknownEvent
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class Event(ABC):
 class EventJsonEncoder(json.JSONEncoder):
     """JSON encoder that additionally converts uuid to str."""
 
-    def default(self, o):
+    def default(self, o: Any) -> Any:
         if isinstance(o, uuid.UUID):
             return str(o)
         return json.JSONEncoder.default(self, o)
@@ -95,7 +96,7 @@ class EventBus:
         # This is done to avoid issues forking, causing flush to fail.
         # https://github.com/confluentinc/confluent-kafka-python/issues/1122
         # https://github.com/dpkp/kafka-python/issues/1098
-        self.producer = None
+        self.producer: BaseProducer | None = None
 
         # Registries
         # Topic <--> Event type is a 1-1 relation right now, i.e. a topic can only
@@ -180,7 +181,7 @@ class EventBus:
         return self._receivers
 
     # TODO: add group parameter?
-    def receive(  # pylint: disable=too-complex
+    def receive(  # pylint: disable=too-complex,too-many-statements
         self,
         event_type: EventType,
         poll_timeout: int = 1,
@@ -218,12 +219,14 @@ class EventBus:
                             try:
                                 message = consumer.poll(poll_timeout)
                             except ConsumerError:
-                                msg = (
+                                error_msg = (
                                     "Error while consuming message. "
                                     "Topic might be blocked"
                                 )
-                                logger.exception(msg, exc_info=True, extra=log_context)
-                                self.sleep(seconds=1, message=msg)
+                                logger.exception(
+                                    error_msg, exc_info=True, extra=log_context
+                                )
+                                self.sleep(seconds=1, message=error_msg)
                                 continue
 
                             # No message to consume.
@@ -236,18 +239,18 @@ class EventBus:
                             # "error
                             msg_error = message.error()  # type: ignore
                             if msg_error:
-                                msg = (
+                                error_msg = (
                                     "Error while consuming message. "
                                     "Topic might be blocked"
                                 )
                                 logger.warning(
-                                    msg,
+                                    error_msg,
                                     extra={
                                         **log_context,
                                         "error": msg_error,
                                     },
                                 )
-                                self.sleep(seconds=1, message=msg)
+                                self.sleep(seconds=1, message=error_msg)
                                 continue
 
                             # Deserialise to the dataclass of the event
@@ -271,8 +274,9 @@ class EventBus:
 
                             # TODO: Fix following
                             # Too many arguments for "Event"  [call-arg]
-                            event = event_type(**event_data)  # type: ignore
-                            event.event_id = event_id
+                            event = event_type(**event_data)
+                            if event_id is not None:
+                                event.event_id = event_id
 
                             try:
                                 func(event)
@@ -307,15 +311,11 @@ class EventBus:
                                 success = False
 
                             if success:
-                                # TODO: Fix following
-                                #  Argument "message" to "ack" of "BaseConsumer" has
-                                #  incompatible type "Union[str, Any, bytes]"; expected
-                                #  "str" [arg-type]
                                 logger.info(
                                     "Acknowledging message.",
                                     extra={**log_context, "event_id": event_id},
                                 )
-                                consumer.ack(message=message)  # type: ignore
+                                consumer.ack(message=message)
                             else:
                                 logger.warning(
                                     "Not acknowledging message.",

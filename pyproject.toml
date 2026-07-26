@@ -16,14 +16,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit==4.6.0",
+    "mypy>=2.3",
+    "pre-commit>=4.6",
     "pylint>=4.0",
-    "ruff>=0.9",
-    "pytest==9.0.3",
-    "pytest-cov==7.1.0",
-    "pytest-mock==3.15.1",
-    "pytest-socket==0.7.0",
-    "pytest-xdist==3.8.0",
+    "pytest-cov>=7.1",
+    "pytest-mock>=3.15",
+    "pytest-socket>=0.7",
+    "pytest-xdist>=3.8",
+    "pytest>=9.0",
+    "ruff>=0.16",
     "taskipy>=1.14",
 ]
 
@@ -97,11 +98,12 @@ ignore = [
     "INP001",  # implicit-namespace-package
 
     # Misc
-    "LOG014",  # exc-info-outside-except-handler
     "ARG001",  # unused-function-argument (interface methods, test event handlers)
     "ARG002",  # unused-method-argument (interface methods)
-    "S105",    # hardcoded-password-string (test assertion, not real password)
     "B024",    # abstract-base-class-without-abstract-method
+    "CPY001",  # missing-copyright-notice
+    "LOG014",  # exc-info-outside-except-handler
+    "S105",    # hardcoded-password-string (test assertion, not real password)
     "TID252",  # relative-imports (used throughout the package)
 ]
 
@@ -123,6 +125,7 @@ line-ending = "auto"
 python_version = "3.13"
 files = ["eventbusk"]
 allow_redefinition = false
+allow_redefinition_old = false
 allow_untyped_globals = false
 check_untyped_defs = true
 color_output = true
@@ -136,19 +139,25 @@ disallow_subclassing_any = true
 disallow_untyped_calls = true
 disallow_untyped_decorators = true
 disallow_untyped_defs = true
+extra_checks = false
 follow_imports = "normal"
 follow_imports_for_stubs = true
+follow_untyped_imports = false
 ignore_errors = false
 ignore_missing_imports = false
 implicit_reexport = false
-local_partial_types  = false
+local_partial_types = false
 no_implicit_optional = false
+no_strict_bytes = false
 pretty = true
+report_deprecated_as_note = false
 show_column_numbers = true
+show_error_code_links = false
 show_error_codes = true
 show_error_context = true
-show_none_errors = true
+show_error_end = false
 strict_equality = true
+strict_equality_for_none = false
 strict_optional = true
 verbosity = 0
 warn_no_return = true
@@ -157,6 +166,14 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["confluent_kafka", "confluent_kafka.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["cotyledon", "cotyledon.*"]
+ignore_missing_imports = true
 
 [tool.pylint.master]
 bad-functions = ["print"]
@@ -230,8 +247,9 @@ directory = "htmlcov"
 output = "coverage.xml"
 
 [tool.taskipy.tasks]
+typecheck = "mypy"
 pylint = "pylint --extension-pkg-whitelist=confluent_kafka --load-plugins=pylint.extensions.bad_builtin --load-plugins=pylint.extensions.mccabe eventbusk tests"
-ruff = "ruff check"
+lint = "ruff check"
 format = "ruff format"
 test = "pytest --cov=. --cov-config=pyproject.toml --no-cov-on-fail"
 coverage = "coverage report --rcfile=pyproject.toml"

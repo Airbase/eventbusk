@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Self, cast
 
-from confluent_kafka import (  # type: ignore
+from confluent_kafka import (
     Consumer as CConsumer,
     KafkaException,
     Producer as CProducer,
@@ -17,6 +17,8 @@ from .base import BaseBrokerURI, BaseConsumer, BaseProducer
 
 if TYPE_CHECKING:
     from types import TracebackType
+
+    from confluent_kafka import Message as CMessage
 
     from .base import DeliveryCallback, Message
 
@@ -135,7 +137,7 @@ class Consumer(BaseConsumer):
         self.broker = BrokerURI.from_uri(broker)
         self.topic = topic
         self.group = group
-        self._consumer: CConsumer = None
+        self._consumer: CConsumer | None = None
 
     def __repr__(self) -> str:
         return (
@@ -164,7 +166,8 @@ class Consumer(BaseConsumer):
         exc_value: BaseException | None,
         exc_traceback: TracebackType | None,
     ) -> None:
-        self._consumer.close()
+        if self._consumer is not None:
+            self._consumer.close()
 
         if exc_type and exc_value and exc_traceback:
             logger.warning(
@@ -179,11 +182,16 @@ class Consumer(BaseConsumer):
 
     def poll(self, timeout: int) -> Message | None:
         """Poll the topic for new messages."""
+        if self._consumer is None:
+            raise RuntimeError("Consumer is not open. Use as a context manager.")
         return self._consumer.poll(timeout)
 
     def ack(self, message: Message | None) -> None:
         """Acknowledge the message by explicitly committing."""
-        self._consumer.commit(message=message)
+        if self._consumer is None:
+            raise RuntimeError("Consumer is not open. Use as a context manager.")
+        if message is not None:
+            self._consumer.commit(message=cast("CMessage", message))
 
 
 class Producer(BaseProducer):
@@ -198,7 +206,7 @@ class Producer(BaseProducer):
     def produce(
         self,
         topic: str,
-        value: Message,
+        value: bytes,
         *,
         flush: bool = True,
         on_delivery: DeliveryCallback = None,
