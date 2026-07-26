@@ -46,8 +46,8 @@ type EventType = type[Event]
 type Receiver = Callable[[Event], None]
 type ReceiverWorker = Callable[[], None]
 type ReceiverDecorator = Callable[[Receiver], ReceiverWorker]
-type Hook = Callable[[], None]
-type Hooks = list[Hook] | None
+type ErrorHandler = Callable[[Exception], None]
+type ErrorHandlers = dict[type[Exception], ErrorHandler] | None
 
 
 class EventBus:
@@ -77,22 +77,20 @@ class EventBus:
         ...
     """
 
-    @staticmethod
-    def _to_hook_list(hooks: Hooks) -> list[Hook]:
-        if hooks is None:
-            return []
-        return list(hooks)
-
     def __init__(
         self,
         broker: str,
         *,
-        before_receive: Hooks = None,
-        after_receive: Hooks = None,
+        on_error: ErrorHandlers = None,
     ) -> None:
         self.broker = broker
-        self._before_receive_hooks: list[Hook] = self._to_hook_list(before_receive)
-        self._after_receive_hooks: list[Hook] = self._to_hook_list(after_receive)
+        # Maps an exception type to a handler that's called only when a receiver
+        # raises that exact type (subclasses must be registered separately).
+        # Lets callers react to specific, known-recoverable failures (e.g. a
+        # stale DB connection) without paying any cost for exceptions they
+        # don't care about, and without eventbusk needing to know what those
+        # exception types are.
+        self._on_error_handlers: dict[type[Exception], ErrorHandler] = on_error or {}
         # Lazily create on first send
         # This is done to avoid issues forking, causing flush to fail.
         # https://github.com/confluentinc/confluent-kafka-python/issues/1122
@@ -115,6 +113,13 @@ class EventBus:
         them uniquely.
         """
         return f"{event_type.__module__}.{event_type.__qualname__}"
+
+    def _find_error_handler(self, exc: Exception) -> ErrorHandler | None:
+        """Returns the handler registered for exc's exact type. Subclasses of
+        a registered type are not matched -- register them individually if
+        needed. Returns None if nothing matches.
+        """
+        return self._on_error_handlers.get(type(exc))
 
     def register_event(self, topic: str, event_type: EventType) -> None:
         """Register an event to a bus.
@@ -269,20 +274,10 @@ class EventBus:
                             event = event_type(**event_data)  # type: ignore
                             event.event_id = event_id
 
-                            for hook in self._before_receive_hooks:
-                                try:
-                                    hook()
-                                except Exception:  # pylint: disable=broad-except
-                                    logger.exception(
-                                        "Error in before_receive hook.",
-                                        extra=log_context,
-                                        exc_info=True,
-                                    )
-
                             try:
                                 func(event)
                                 success = True
-                            except Exception:  # pylint: disable=broad-except
+                            except Exception as exc:  # pylint: disable=broad-except
                                 logger.exception(
                                     (
                                         "Error while processing event. "
@@ -291,17 +286,25 @@ class EventBus:
                                     extra={**log_context, "data": event},
                                     exc_info=True,
                                 )
-                                success = False
-                            finally:
-                                for hook in self._after_receive_hooks:
+                                # Only calls a handler when the raised exception's
+                                # exact type is registered, so recovery work (e.g.
+                                # resetting a stale DB connection) only runs for
+                                # the specific failure it's meant for, not for
+                                # every exception. The message below is left
+                                # unacked, so it will be redelivered and
+                                # reprocessed once whatever the handler fixed has
+                                # taken effect.
+                                handler = self._find_error_handler(exc)
+                                if handler is not None:
                                     try:
-                                        hook()
+                                        handler(exc)
                                     except Exception:  # pylint: disable=broad-except
                                         logger.exception(
-                                            "Error in after_receive hook.",
+                                            "Error in on_error handler.",
                                             extra=log_context,
                                             exc_info=True,
                                         )
+                                success = False
 
                             if success:
                                 # TODO: Fix following
