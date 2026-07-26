@@ -8,11 +8,11 @@ import sys
 import threading
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from types import ModuleType
 from typing import TYPE_CHECKING
 
 import click
-import cotyledon  # type: ignore
+import cotyledon
+from cotyledon.types import WorkerId
 
 from .bus import EventBus
 
@@ -59,10 +59,6 @@ def find_app(app: str, attr_name: str = "app") -> EventBus:
     with cwd_in_path():
         module = importlib.import_module(module_name, package=None)
 
-    if not isinstance(module, ModuleType):
-        msg = f"Module f{module_name} not found or cannot be imported"
-        raise AttributeError(msg)
-
     # Find bus instance within the module
     found = getattr(module, attr_name)
     if not isinstance(found, EventBus):
@@ -79,14 +75,16 @@ def cli() -> None:
     """Main entry point."""
 
 
-class Worker(cotyledon.Service):  # type: ignore
+class Worker(cotyledon.Service):
     """Process handling an event receiver."""
 
     def __init__(self, worker_id: int, receiver: Callable[..., None]) -> None:
-        super().__init__(worker_id)
+        super().__init__(WorkerId(worker_id))
         self._shutdown = threading.Event()
         self.receiver = receiver
-        self.name = EventBus.to_fqn(receiver)
+        # cotyledon.Service declares `name` as a ClassVar, but sets it
+        # per-instance in __init_subclass__; mirroring that here is safe.
+        self.name = EventBus.to_fqn(receiver)  # type: ignore[misc]
 
     def run(self) -> None:
         logger.info(f"{self.name} running.")

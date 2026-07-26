@@ -64,11 +64,13 @@ class Consumer(BaseConsumer):
         self.topic = topic
         self.group = group
 
+    # pylint: disable-next=useless-return
     def poll(self, timeout: int = 1) -> Message | None:
         """Sleeps for the required timeout, and returns no message."""
         time.sleep(timeout)
+        return None
 
-    def ack(self, message: Message) -> None:
+    def ack(self, message: Message | None) -> None:
         """Acknowledge event."""
 
 

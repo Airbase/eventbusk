@@ -17,13 +17,16 @@ from dataclasses import dataclass
 # create an app instance of the bus
 bus = EventBus(broker="kafka://localhost:9092")
 
+
 # define an event as a dataclass
 @dataclass
 class Foo(Event):
     foo: int
 
+
 # register the event to a single topic
 bus.register_event("topic_foo", Foo)
+
 
 # Define an method that receives that event
 @bus.receive(event_type=Foo)
@@ -38,13 +41,10 @@ bus.send(foo)
 
 ## Contributing
 
-Pre-requisites:
+### Setting up locally
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-
-You can start a Confluent Kafka server locally via Docker by following
-https://docs.confluent.io/platform/current/platform-quickstart.html
 
 Set up the project locally:
 
@@ -55,6 +55,37 @@ uv sync --extra dev
 pre-commit install
 ```
 
+### Run example project
+You will need a Confluent Kafka server locally via Docker by following
+https://docs.confluent.io/platform/current/platform-quickstart.html
+
+There's an examples/docker-compose.yml that we can use to run a Kafka broker in a separate terminal window
+
+```bash
+cd examples
+docker-compose up
+```
+
+Now you can run the example project consumers. Ensure the topics in the example are created first.
+
+```bash
+# See examples/eventbus.py
+uv run eventbusk worker -A eventbus:bus
+```
+
+You can also publish a sample message:
+
+```bash
+uv run python
+
+>>> from eventbus import bus, Fooey, Barzy
+>>> bus.send(Fooey(foo_val="lorem ipsum"))
+>>> bus.send(Barzey(bar_val="dolor sit amet"))
+```
+
+### Code quality
+After making code changes you can run some basic sanity checks as follows.
+
 Run the tests:
 
 ```bash
@@ -64,6 +95,7 @@ uv run task test
 Run the linter:
 
 ```bash
+uv run task ruff
 uv run task pylint
 ```
 
@@ -73,18 +105,14 @@ Format the code:
 uv run task format
 ```
 
-Now you can run the example project consumers. Ensure the topics in the example are created first.
+Run type checks:
 
 ```bash
-cd examples
-uv run eventbusk worker -A eventbus:bus
+uv run task typecheck
 ```
 
-You can also publish:
+You can also choose running pre-commit manually, which runs all all of the above, among other things.
 
 ```bash
-uv run python
-
->>> from eventbus import bus, Fooey
->>> bus.send(Fooey(foo_val="lorem ipsum"))
+uv run pre-commit run --all-files
 ```
