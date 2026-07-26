@@ -160,7 +160,7 @@ def test_on_error_handler_not_called_when_handler_succeeds(
     bus.register_event("first_topic", Foo)
 
     @bus.receive(event_type=Foo)
-    def foo_processor(event: Event) -> None:
+    def foo_processor(_event: Event) -> None:
         pass
 
     consumer, message = _make_mock_consumer({"first": 42})
