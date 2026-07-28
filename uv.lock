@@ -217,7 +217,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "confluent-kafka", specifier = ">=2.3.0" },
-    { name = "cotyledon", specifier = ">=1.7" },
+    { name = "cotyledon", specifier = ">=2.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.3" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6" },
     { name = "pylint", marker = "extra == 'dev'", specifier = ">=4.0" },

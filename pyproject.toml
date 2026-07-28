@@ -11,7 +11,7 @@ requires-python = ">=3.13"
 dependencies = [
     "click>=8",
     "confluent-kafka>=2.3.0",
-    "cotyledon>=1.7",
+    "cotyledon>=2.2.0",
 ]
 
 [project.optional-dependencies]
