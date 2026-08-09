@@ -52,8 +52,7 @@ class TracingConfig:
     -------
     def inject_trace(headers):
         # Called on send. Return the headers to attach to the message.
-        return (headers or []) + [("my-trace-id", current_trace_id())]
-
+        return (headers or []) + [("my-trace-id", current_trace_id().encode("utf-8"))]
     def extract_trace(message):
         # Called on receive. Read back whatever inject_trace attached.
         for key, value in message.headers() or []:
