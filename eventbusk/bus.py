@@ -32,31 +32,47 @@ type SpanManager = Callable[[str, str, dict[str, str] | None], Any] | None
 
 @dataclass
 class TracingConfig:
-    """Optional tracing configuration for EventBus.
+    """Optional tracing hooks for EventBus.
 
-    Applications can inject custom tracing logic (Datadog, Jaeger, OpenTelemetry, etc.)
-    without coupling eventbusk to any specific tracing framework.
+    A producer and a consumer are separate processes, so by default nothing
+    links a `send()` to the receiver that eventually handles it. These three
+    callbacks let an application carry that link across the broker in message
+    headers, without eventbusk depending on any particular tracing library.
+
+    All three are optional; omit any of them to disable that half. Whatever
+    `extract_trace` returns is passed straight through to `span_manager` --
+    eventbusk never looks inside it.
+
+    None of the callbacks may raise. `inject_trace` raising will fail the
+    send; `extract_trace` or `span_manager` raising will escape the receive
+    loop and stop the consumer. Swallow your own errors: losing a trace is
+    better than losing the message.
 
     Example:
     -------
-    def inject_dd_trace_context(headers):
-        # Custom logic to extract current Datadog span and inject into headers
-        pass
+    def inject_trace(headers):
+        # Called on send. Return the headers to attach to the message.
+        return (headers or []) + [("my-trace-id", current_trace_id())]
 
-    def extract_dd_trace_context(message):
-        # Custom logic to extract trace context from Kafka headers
-        pass
+    def extract_trace(message):
+        # Called on receive. Read back whatever inject_trace attached.
+        for key, value in message.headers() or []:
+            if key == "my-trace-id":
+                return {"trace_id": value.decode("utf-8")}
+        return None
 
-    def create_dd_span(event_fqn, receiver_fqn, trace_ctx):
-        # Custom logic to create and manage Datadog span
-        pass
+    @contextmanager
+    def span_manager(event_fqn, receiver_fqn, trace_ctx):
+        # Called on receive. Wraps the receiver invocation.
+        with my_tracer.span(receiver_fqn) as span:
+            if trace_ctx:
+                span.set_tag("trace_id", trace_ctx["trace_id"])
+            yield span
 
-    tracing = TracingConfig(
-        inject_trace=inject_dd_trace_context,
-        extract_trace=extract_dd_trace_context,
-        span_manager=create_dd_span,
+    bus = EventBus(
+        broker="kafka://...",
+        tracing=TracingConfig(inject_trace, extract_trace, span_manager),
     )
-    bus = EventBus(broker="kafka://...", tracing=tracing)
 
     """
 
