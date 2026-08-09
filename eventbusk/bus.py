@@ -8,6 +8,7 @@ import time
 import uuid
 from abc import ABC
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
 from functools import wraps
 from typing import Any
@@ -25,9 +26,12 @@ logger = logging.getLogger(__name__)
 type TraceInjector = (
     Callable[[list[tuple[str, bytes]] | None], list[tuple[str, bytes]]] | None
 )
-type TraceExtractor = Callable[[Any], dict[str, str] | None] | None
+type TraceContext = object | None
+type TraceExtractor = Callable[[Any], TraceContext] | None
 # Returns a context manager wrapping one receiver invocation.
-type SpanManager = Callable[[str, str, dict[str, str] | None], Any] | None
+type SpanManager = (
+    Callable[[str, str, TraceContext], AbstractContextManager[Any]] | None
+)
 
 
 @dataclass
