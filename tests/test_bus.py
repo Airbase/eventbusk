@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import uuid
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -77,28 +79,55 @@ def test_bus_send(mocker: MockerFixture) -> None:
 
     # Then check the underlying producer was correctly called with the right event json
     assert bus is not None
-    producer.produce.assert_has_calls(
-        [
-            mocker.call(
-                topic="first_topic",
-                value=bytes(
-                    f'{{"event_id": "{foo_event_uuid!s}", "first": 1}}',
-                    "utf-8",
-                ),
-                flush=True,
-                on_delivery=on_delivery,
-            ),
-            mocker.call(
-                topic="second_topic",
-                value=bytes(
-                    f'{{"event_id": "{bar_event_uuid!s}", "second": 1}}',
-                    "utf-8",
-                ),
-                flush=True,
-                on_delivery=on_delivery,
-            ),
-        ],
+    calls = producer.produce.call_args_list
+    assert len(calls) == 2
+
+    first_payload = json.loads(calls[0].kwargs["value"].decode("utf-8"))
+    assert calls[0].kwargs["topic"] == "first_topic"
+    assert calls[0].kwargs["flush"] is True
+    assert calls[0].kwargs["on_delivery"] is on_delivery
+    assert first_payload == {
+        "event_id": str(foo_event_uuid),
+        "trace_id": None,
+        "parent_span_id": None,
+        "first": 1,
+    }
+
+    second_payload = json.loads(calls[1].kwargs["value"].decode("utf-8"))
+    assert calls[1].kwargs["topic"] == "second_topic"
+    assert calls[1].kwargs["flush"] is True
+    assert calls[1].kwargs["on_delivery"] is on_delivery
+    assert second_payload == {
+        "event_id": str(bar_event_uuid),
+        "trace_id": None,
+        "parent_span_id": None,
+        "second": 1,
+    }
+
+
+def test_bus_send_populates_trace_context_from_active_ddtrace_span(
+    mocker: MockerFixture,
+) -> None:
+    """When ddtrace span exists, send should embed trace + parent span ids."""
+    producer = mocker.Mock()
+    mocker.patch("eventbusk.bus.Producer", return_value=producer)
+
+    fake_span = SimpleNamespace(trace_id=12345, span_id=67890)
+    fake_tracer = SimpleNamespace(current_span=lambda: fake_span)
+    ddtrace_module = SimpleNamespace(tracer=fake_tracer)
+    mocker.patch.dict(sys.modules, {"ddtrace": ddtrace_module})
+
+    bus = EventBus(broker=BROKER)
+    bus.register_event(topic="first_topic", event_type=Foo)
+
+    event = Foo(first=10)
+    bus.send(event)
+
+    payload = json.loads(
+        producer.produce.call_args.kwargs["value"].decode("utf-8")
     )
+    assert payload["trace_id"] == "12345"
+    assert payload["parent_span_id"] == "67890"
 
 
 def test_bus_receive() -> None:
@@ -271,3 +300,46 @@ def test_failing_on_error_handler_does_not_crash_receiver(
 
     failing_handler.assert_called_once()
     consumer.ack.assert_not_called()
+
+
+def test_bus_receive_sets_trace_fields_and_tags_consumer_span(
+    mocker: MockerFixture,
+) -> None:
+    """Receiver should restore trace fields and tag active consumer span."""
+    bus = EventBus(broker=BROKER)
+    bus.register_event("first_topic", Foo)
+
+    seen_events: list[Event] = []
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        seen_events.append(event)
+
+    consumer, message = _make_mock_consumer(
+        {
+            "event_id": str(uuid.uuid4()),
+            "trace_id": "111",
+            "parent_span_id": "222",
+            "first": 42,
+        }
+    )
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    span = mocker.Mock()
+    fake_tracer = SimpleNamespace(
+        current_root_span=lambda: span,
+        current_span=lambda: None,
+    )
+    ddtrace_module = SimpleNamespace(tracer=fake_tracer)
+    mocker.patch.dict(sys.modules, {"ddtrace": ddtrace_module})
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    assert len(seen_events) == 1
+    assert seen_events[0].trace_id == "111"
+    assert seen_events[0].parent_span_id == "222"
+    span.set_tag.assert_any_call("airbase.trace_id", "111")
+    span.set_tag.assert_any_call("eventbus.trace_id", "111")
+    span.set_tag.assert_any_call("eventbus.parent_span_id", "222")
+    consumer.ack.assert_called_once_with(message=message)
+
