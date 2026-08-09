@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from eventbusk import Event, EventBus
+from eventbusk import Event, EventBus, TracingConfig
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from pytest_mock import MockerFixture
+
+    SpanManagerT = Callable[[str, str, "dict | None"], Iterator[MagicMock]]
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +91,6 @@ def test_bus_send(mocker: MockerFixture) -> None:
     assert calls[0].kwargs["on_delivery"] is on_delivery
     assert first_payload == {
         "event_id": str(foo_event_uuid),
-        "trace_id": None,
-        "parent_span_id": None,
         "first": 1,
     }
 
@@ -99,35 +100,8 @@ def test_bus_send(mocker: MockerFixture) -> None:
     assert calls[1].kwargs["on_delivery"] is on_delivery
     assert second_payload == {
         "event_id": str(bar_event_uuid),
-        "trace_id": None,
-        "parent_span_id": None,
         "second": 1,
     }
-
-
-def test_bus_send_populates_trace_context_from_active_ddtrace_span(
-    mocker: MockerFixture,
-) -> None:
-    """When ddtrace span exists, send should embed trace + parent span ids."""
-    producer = mocker.Mock()
-    mocker.patch("eventbusk.bus.Producer", return_value=producer)
-
-    fake_span = SimpleNamespace(trace_id=12345, span_id=67890)
-    fake_tracer = SimpleNamespace(current_span=lambda: fake_span)
-    ddtrace_module = SimpleNamespace(tracer=fake_tracer)
-    mocker.patch.dict(sys.modules, {"ddtrace": ddtrace_module})
-
-    bus = EventBus(broker=BROKER)
-    bus.register_event(topic="first_topic", event_type=Foo)
-
-    event = Foo(first=10)
-    bus.send(event)
-
-    payload = json.loads(
-        producer.produce.call_args.kwargs["value"].decode("utf-8")
-    )
-    assert payload["trace_id"] == "12345"
-    assert payload["parent_span_id"] == "67890"
 
 
 def test_bus_receive() -> None:
@@ -302,44 +276,194 @@ def test_failing_on_error_handler_does_not_crash_receiver(
     consumer.ack.assert_not_called()
 
 
-def test_bus_receive_sets_trace_fields_and_tags_consumer_span(
-    mocker: MockerFixture,
-) -> None:
-    """Receiver should restore trace fields and tag active consumer span."""
-    bus = EventBus(broker=BROKER)
+# ---------------------------------------------------------------------------
+# Tracing hooks
+# ---------------------------------------------------------------------------
+
+
+def _send_one(bus: EventBus, mocker: MockerFixture) -> dict:
+    """Send a single Foo through `bus` and return the produce() kwargs.
+
+    The event id is pinned so payloads from two different buses can be
+    compared byte for byte.
+    """
+    producer = mocker.Mock()
+    mocker.patch("eventbusk.bus.Producer", return_value=producer)
+    bus.register_event(topic="first_topic", event_type=Foo)
+    event = Foo(first=1)
+    event.event_id = uuid.UUID("11111111-2222-3333-4444-555555555555")
+    bus.send(event)
+    return producer.produce.call_args.kwargs
+
+
+def _make_span_manager() -> tuple[SpanManagerT, dict]:
+    """Build a span_manager that records how and when it was called."""
+    recorded: dict = {"order": []}
+
+    @contextmanager
+    def span_manager(
+        event_fqn: str, receiver_fqn: str, trace_ctx: dict | None
+    ) -> Iterator[MagicMock]:
+        recorded["args"] = (event_fqn, receiver_fqn, trace_ctx)
+        recorded["order"].append("enter")
+        yield MagicMock()
+        recorded["order"].append("exit")
+
+    return span_manager, recorded
+
+
+def test_tracing_config_defaults_to_no_hooks() -> None:
+    """An empty TracingConfig should disable every hook."""
+    config = TracingConfig()
+
+    assert config.inject_trace is None
+    assert config.extract_trace is None
+    assert config.span_manager is None
+
+
+def test_send_without_tracing_passes_no_headers(mocker: MockerFixture) -> None:
+    """A bus with no tracing configured should not attach headers."""
+    kwargs = _send_one(EventBus(broker=BROKER), mocker)
+
+    assert kwargs["headers"] is None
+
+
+def test_send_attaches_headers_from_inject_trace(mocker: MockerFixture) -> None:
+    """Whatever inject_trace returns should reach the broker verbatim."""
+    bus = EventBus(
+        broker=BROKER,
+        tracing=TracingConfig(
+            inject_trace=lambda headers: (headers or []) + [("my-trace-id", b"abc")]
+        ),
+    )
+
+    kwargs = _send_one(bus, mocker)
+
+    assert kwargs["headers"] == [("my-trace-id", b"abc")]
+
+
+def test_send_normalises_empty_headers_to_none(mocker: MockerFixture) -> None:
+    """An injector that attaches nothing should not send an empty header list."""
+    bus = EventBus(
+        broker=BROKER, tracing=TracingConfig(inject_trace=lambda _headers: [])
+    )
+
+    kwargs = _send_one(bus, mocker)
+
+    assert kwargs["headers"] is None
+
+
+def test_tracing_leaves_the_message_body_untouched(mocker: MockerFixture) -> None:
+    """Trace context must ride in headers only.
+
+    This is what makes the feature safe to deploy and roll back: consumers
+    running older code deserialise exactly the same payload.
+    """
+    untraced = _send_one(EventBus(broker=BROKER), mocker)
+    traced = _send_one(
+        EventBus(
+            broker=BROKER,
+            tracing=TracingConfig(
+                inject_trace=lambda headers: (headers or []) + [("my-trace-id", b"abc")]
+            ),
+        ),
+        mocker,
+    )
+
+    # Turning tracing on changes nothing about the body...
+    assert traced["value"] == untraced["value"]
+    # ...and the body carries only the event's own fields. Asserted explicitly
+    # rather than by comparing the two payloads: a leak would show up in both
+    # and the comparison above would still pass.
+    assert set(json.loads(traced["value"].decode("utf-8"))) == {"event_id", "first"}
+
+
+def test_receive_runs_handler_inside_the_span(mocker: MockerFixture) -> None:
+    """span_manager should wrap the receiver, and be told what it is wrapping."""
+    span_manager, recorded = _make_span_manager()
+    bus = EventBus(
+        broker=BROKER,
+        tracing=TracingConfig(
+            extract_trace=lambda _message: {"trace_id": "111"},
+            span_manager=span_manager,
+        ),
+    )
     bus.register_event("first_topic", Foo)
 
-    seen_events: list[Event] = []
+    seen: list[Event] = []
 
     @bus.receive(event_type=Foo)
     def foo_processor(event: Event) -> None:
-        seen_events.append(event)
+        recorded["order"].append("handler")
+        seen.append(event)
 
-    consumer, message = _make_mock_consumer(
-        {
-            "event_id": str(uuid.uuid4()),
-            "trace_id": "111",
-            "parent_span_id": "222",
-            "first": 42,
-        }
-    )
+    consumer, message = _make_mock_consumer({"first": 42})
     mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
-
-    span = mocker.Mock()
-    fake_tracer = SimpleNamespace(
-        current_root_span=lambda: span,
-        current_span=lambda: None,
-    )
-    ddtrace_module = SimpleNamespace(tracer=fake_tracer)
-    mocker.patch.dict(sys.modules, {"ddtrace": ddtrace_module})
 
     foo_processor()  # pylint: disable=no-value-for-parameter
 
-    assert len(seen_events) == 1
-    assert seen_events[0].trace_id == "111"
-    assert seen_events[0].parent_span_id == "222"
-    span.set_tag.assert_any_call("airbase.trace_id", "111")
-    span.set_tag.assert_any_call("eventbus.trace_id", "111")
-    span.set_tag.assert_any_call("eventbus.parent_span_id", "222")
+    # The handler runs between the span opening and closing, so the span
+    # actually measures the receiver rather than sitting beside it.
+    assert recorded["order"] == ["enter", "handler", "exit"]
+
+    event_fqn, receiver_fqn, trace_ctx = recorded["args"]
+    assert event_fqn.endswith("Foo")
+    assert receiver_fqn.endswith("foo_processor")
+    assert trace_ctx == {"trace_id": "111"}
+
+    assert len(seen) == 1
     consumer.ack.assert_called_once_with(message=message)
 
+
+def test_receive_spans_messages_that_carry_no_trace_context(
+    mocker: MockerFixture,
+) -> None:
+    """Messages produced before tracing existed must still be traced locally.
+
+    extract_trace returns None for them, but the receiver should still get a
+    span, otherwise that work goes missing entirely.
+    """
+    span_manager, recorded = _make_span_manager()
+    bus = EventBus(
+        broker=BROKER,
+        tracing=TracingConfig(
+            extract_trace=lambda _message: None, span_manager=span_manager
+        ),
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        recorded["order"].append("handler")
+        recorded["event"] = event
+
+    consumer, message = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    assert recorded["order"] == ["enter", "handler", "exit"]
+    assert recorded["args"][2] is None
+    # The message is still delivered intact, not just spanned.
+    assert recorded["event"].first == 42
+    consumer.ack.assert_called_once_with(message=message)
+
+
+def test_receive_is_handed_the_raw_message_to_extract_from(
+    mocker: MockerFixture,
+) -> None:
+    """extract_trace should receive the broker message, so it can read headers."""
+    extract_trace = mocker.Mock(return_value=None)
+    bus = EventBus(broker=BROKER, tracing=TracingConfig(extract_trace=extract_trace))
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        logger.info(event)
+
+    consumer, message = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    extract_trace.assert_called_once_with(message)
