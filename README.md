@@ -99,11 +99,12 @@ Things worth knowing:
 - **Old messages are fine.** If a message arrives with no trace headers,
   `extract_trace` just returns `None` and `span_manager` is still called with
   `trace_ctx=None`, so receiver work stays visible either way.
-- **Your callbacks must not raise.** eventbusk does not guard them for you.
-  `inject_trace` raising will fail the `send()`. `extract_trace` or
-  `span_manager` raising will escape the receive loop and stop the consumer
-  altogether. Wrap the body of each one in `try`/`except` and fall back to
-  doing nothing - losing a trace is always better than losing the message.
+- **Your callbacks should not raise.** Wrap the body of each one in
+  `try`/`except` and fall back to doing nothing - losing a trace is always
+  better than losing the message. If one raises anyway: `inject_trace` fails
+  the `send()`; `extract_trace` is guarded, so eventbusk logs it and processes
+  the event untraced; `span_manager` counts as a receiver failure, so the
+  message is never acked and will be redelivered indefinitely.
 
 ## Contributing
 

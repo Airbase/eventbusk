@@ -43,10 +43,11 @@ class TracingConfig:
     `extract_trace` returns is passed straight through to `span_manager` --
     eventbusk never looks inside it.
 
-    None of the callbacks may raise. `inject_trace` raising will fail the
-    send; `extract_trace` or `span_manager` raising will escape the receive
-    loop and stop the consumer. Swallow your own errors: losing a trace is
-    better than losing the message.
+    Swallow your own errors: losing a trace is better than losing the message.
+    If one does raise anyway, `inject_trace` fails the send; `extract_trace` is
+    guarded, so eventbusk logs it and processes the event untraced; and
+    `span_manager` counts as a receiver failure, leaving the message unacked
+    and redelivered indefinitely.
 
     Example:
     -------
@@ -350,9 +351,21 @@ class EventBus:
                                 event.event_id = event_id
 
                             # Extract any trace context the producer attached.
+                            # Guarded: the enclosing try only catches
+                            # KeyboardInterrupt, so a raising extractor would
+                            # escape the receive loop and stop the consumer.
+                            # Losing a trace beats losing the message.
                             trace_ctx = None
                             if self._tracing.extract_trace:
-                                trace_ctx = self._tracing.extract_trace(message)
+                                try:
+                                    trace_ctx = self._tracing.extract_trace(message)
+                                except Exception:  # pylint: disable=broad-except
+                                    logger.exception(
+                                        "Error in extract_trace. "
+                                        "Processing event untraced.",
+                                        extra=log_context,
+                                        exc_info=True,
+                                    )
 
                             # Always ask for a span when a manager is configured:
                             # a message produced without trace context still

@@ -449,6 +449,43 @@ def test_receive_spans_messages_that_carry_no_trace_context(
     consumer.ack.assert_called_once_with(message=message)
 
 
+def test_a_broken_extract_trace_does_not_stop_the_consumer(
+    mocker: MockerFixture,
+) -> None:
+    """A raising extractor must cost the trace, never the message.
+
+    The receive loop's outer try only catches KeyboardInterrupt, so without a
+    guard this exception would escape the loop and kill the consumer outright.
+    """
+    span_manager, recorded = _make_span_manager()
+
+    def extract_trace(_message: object) -> None:
+        raise RuntimeError("trace backend is down")
+
+    bus = EventBus(
+        broker=BROKER,
+        tracing=TracingConfig(extract_trace=extract_trace, span_manager=span_manager),
+    )
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(event: Event) -> None:
+        recorded["order"].append("handler")
+        recorded["event"] = event
+
+    consumer, message = _make_mock_consumer({"first": 42})
+    mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    # The receiver still ran, inside a span, and the message was acked.
+    assert recorded["order"] == ["enter", "handler", "exit"]
+    assert recorded["event"].first == 42
+    consumer.ack.assert_called_once_with(message=message)
+    # Untraced, since that is all the failure should have cost us.
+    assert recorded["args"][2] is None
+
+
 def test_receive_is_handed_the_raw_message_to_extract_from(
     mocker: MockerFixture,
 ) -> None:
