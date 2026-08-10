@@ -39,6 +39,73 @@ foo = Foo(foo=1)
 bus.send(foo)
 ```
 
+## Tracing (optional)
+
+A producer and a consumer are different processes, so by default nothing tells
+you which `bus.send()` caused which receiver to run.
+
+eventbusk can carry that link for you, but it does not know about Datadog,
+OpenTelemetry, Jaeger or any other tool. You hand it up to three functions and
+it calls them at the right moments. If you pass nothing, tracing is off and
+nothing changes.
+
+```python
+from contextlib import contextmanager
+
+from eventbusk import EventBus, TracingConfig
+
+
+def inject_trace(headers):
+    """Called on send. Return the headers to put on the outgoing message."""
+    return (headers or []) + [("my-trace-id", b"abc123")]
+
+
+def extract_trace(message):
+    """Called on receive. Read the headers back off the incoming message.
+
+    Return anything you like (or None) - it is passed straight to span_manager.
+    """
+    for key, value in message.headers() or []:
+        if key == "my-trace-id":
+            return {"trace_id": value.decode("utf-8")}
+    return None
+
+
+@contextmanager
+def span_manager(event_fqn, receiver_fqn, trace_ctx):
+    """Called on receive. Wraps the receiver so you can time/record it."""
+    with my_tracer.start_span(receiver_fqn) as span:
+        if trace_ctx:
+            span.set_tag("trace_id", trace_ctx["trace_id"])
+        yield span
+
+
+bus = EventBus(
+    broker="kafka://localhost:9092",
+    tracing=TracingConfig(
+        inject_trace=inject_trace,
+        extract_trace=extract_trace,
+        span_manager=span_manager,
+    ),
+)
+```
+
+Things worth knowing:
+
+- **The message body is untouched.** Trace data travels in Kafka message
+  headers, so the JSON your receivers deserialise is exactly the same with
+  tracing on or off. You can turn this on (or roll it back) without worrying
+  about messages already sitting in a topic.
+- **Old messages are fine.** If a message arrives with no trace headers,
+  `extract_trace` just returns `None` and `span_manager` is still called with
+  `trace_ctx=None`, so receiver work stays visible either way.
+- **Your callbacks should not raise.** Wrap the body of each one in
+  `try`/`except` and fall back to doing nothing - losing a trace is always
+  better than losing the message. If one raises anyway: `inject_trace` fails
+  the `send()`; `extract_trace` is guarded, so eventbusk logs it and processes
+  the event untraced; `span_manager` counts as a receiver failure, so the
+  message is never acked and will be redelivered indefinitely.
+
 ## Contributing
 
 ### Setting up locally
@@ -95,7 +162,7 @@ uv run task test
 Run the linter:
 
 ```bash
-uv run task ruff
+uv run task lint
 uv run task pylint
 ```
 
