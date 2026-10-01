@@ -208,6 +208,7 @@ class Producer(BaseProducer):
         topic: str,
         value: bytes,
         *,
+        headers: list[tuple[str, bytes]] | None = None,
         flush: bool = True,
         on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
@@ -223,7 +224,14 @@ class Producer(BaseProducer):
         try:
             # Trigger any available delivery report callbacks from previous produce
             self._producer.poll(0)
-            self._producer.produce(topic=topic, value=value, on_delivery=on_delivery)
+            self._producer.produce(
+                topic=topic,
+                value=value,
+                # confluent types header values as `str | bytes | None`; ours are
+                # always bytes. list is invariant, so the narrower type needs a cast.
+                headers=cast("list[tuple[str, str | bytes | None]] | None", headers),
+                on_delivery=on_delivery,
+            )
             if flush:
                 self._producer.flush()
         except KafkaException as exc:

@@ -86,6 +86,7 @@ class Producer(BaseProducer):
         topic: str,
         value: Message,
         *,
+        headers: list[tuple[str, bytes]] | None = None,
         flush: bool = True,
         on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
@@ -97,6 +98,7 @@ class Producer(BaseProducer):
                 "flush": True,
                 "topic": topic,
                 "value": value,
+                "headers": headers,
             },
         )
         # TODO: call # on_delivery

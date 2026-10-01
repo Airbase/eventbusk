@@ -181,6 +181,7 @@ def test_kafka_producer(
     cproducer.produce.assert_called_once_with(
         topic="foo",
         value=value,
+        headers=None,
         on_delivery=None,
     )
     cproducer.flush.assert_called_once()

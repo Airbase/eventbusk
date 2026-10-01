@@ -8,6 +8,7 @@ import time
 import uuid
 from abc import ABC
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
 from functools import wraps
 from typing import Any
@@ -16,6 +17,72 @@ from .brokers import BaseProducer, Consumer, DeliveryCallback, Producer
 from .exceptions import AlreadyRegistered, ConsumerError, ProducerError, UnknownEvent
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Distributed Tracing Support (Optional, injected by application)
+# ============================================================================
+
+type TraceInjector = (
+    Callable[[list[tuple[str, bytes]] | None], list[tuple[str, bytes]]] | None
+)
+type TraceContext = object | None
+type TraceExtractor = Callable[[Any], TraceContext] | None
+# Returns a context manager wrapping one receiver invocation.
+type SpanManager = (
+    Callable[[str, str, TraceContext], AbstractContextManager[Any]] | None
+)
+
+
+@dataclass
+class TracingConfig:
+    """Optional tracing hooks for EventBus.
+
+    A producer and a consumer are separate processes, so by default nothing
+    links a `send()` to the receiver that eventually handles it. These three
+    callbacks let an application carry that link across the broker in message
+    headers, without eventbusk depending on any particular tracing library.
+
+    All three are optional; omit any of them to disable that half. Whatever
+    `extract_trace` returns is passed straight through to `span_manager` --
+    eventbusk never looks inside it.
+
+    Swallow your own errors: losing a trace is better than losing the message.
+    If one does raise anyway, `inject_trace` fails the send; `extract_trace` is
+    guarded, so eventbusk logs it and processes the event untraced; and
+    `span_manager` counts as a receiver failure, leaving the message unacked
+    and redelivered indefinitely.
+
+    Example:
+    -------
+    def inject_trace(headers):
+        # Called on send. Return the headers to attach to the message.
+        return (headers or []) + [("my-trace-id", current_trace_id().encode("utf-8"))]
+    def extract_trace(message):
+        # Called on receive. Read back whatever inject_trace attached.
+        for key, value in message.headers() or []:
+            if key == "my-trace-id":
+                return {"trace_id": value.decode("utf-8")}
+        return None
+
+    @contextmanager
+    def span_manager(event_fqn, receiver_fqn, trace_ctx):
+        # Called on receive. Wraps the receiver invocation.
+        with my_tracer.span(receiver_fqn) as span:
+            if trace_ctx:
+                span.set_tag("trace_id", trace_ctx["trace_id"])
+            yield span
+
+    bus = EventBus(
+        broker="kafka://...",
+        tracing=TracingConfig(inject_trace, extract_trace, span_manager),
+    )
+
+    """
+
+    inject_trace: TraceInjector = None
+    extract_trace: TraceExtractor = None
+    span_manager: SpanManager = None
 
 
 @dataclass
@@ -83,6 +150,7 @@ class EventBus:
         broker: str,
         *,
         on_error: ErrorHandlers = None,
+        tracing: TracingConfig | None = None,
     ) -> None:
         self.broker = broker
         # Maps an exception type to a handler that's called only when a receiver
@@ -92,6 +160,7 @@ class EventBus:
         # don't care about, and without eventbusk needing to know what those
         # exception types are.
         self._on_error_handlers: dict[type[Exception], ErrorHandler] = on_error or {}
+        self._tracing = tracing or TracingConfig()
         # Lazily create on first send
         # This is done to avoid issues forking, causing flush to fail.
         # https://github.com/confluentinc/confluent-kafka-python/issues/1122
@@ -154,10 +223,16 @@ class EventBus:
         topic = self._event_to_topic[event_fqn]
         data = json.dumps(asdict(event), cls=EventJsonEncoder).encode("utf-8")
 
+        # Inject trace context if tracing is configured
+        headers = None
+        if self._tracing.inject_trace:
+            headers = self._tracing.inject_trace(headers)
+
         try:
             self.producer.produce(
                 topic=topic,
                 value=data,
+                headers=headers or None,
                 flush=flush,
                 on_delivery=on_delivery,
             )
@@ -278,8 +353,40 @@ class EventBus:
                             if event_id is not None:
                                 event.event_id = event_id
 
+                            # Extract any trace context the producer attached.
+                            # Guarded: the enclosing try only catches
+                            # KeyboardInterrupt, so a raising extractor would
+                            # escape the receive loop and stop the consumer.
+                            # Losing a trace beats losing the message.
+                            trace_ctx = None
+                            if self._tracing.extract_trace:
+                                try:
+                                    trace_ctx = self._tracing.extract_trace(message)
+                                except Exception:  # pylint: disable=broad-except
+                                    logger.exception(
+                                        "Error in extract_trace. "
+                                        "Processing event untraced.",
+                                        extra=log_context,
+                                        exc_info=True,
+                                    )
+
+                            # Always ask for a span when a manager is configured:
+                            # a message produced without trace context still
+                            # deserves its own (unparented) span, otherwise
+                            # receiver work is invisible.
+                            span = None
+                            if self._tracing.span_manager:
+                                span = self._tracing.span_manager(
+                                    event_fqn, receiver_fqn, trace_ctx
+                                )
+
                             try:
-                                func(event)
+                                # Execute handler in span context if available
+                                if span:
+                                    with span:
+                                        func(event)
+                                else:
+                                    func(event)
                                 success = True
                             except Exception as exc:  # pylint: disable=broad-except
                                 logger.exception(

@@ -115,6 +115,10 @@ ignore = [
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
+[tool.ruff.lint.pylint]
+# Match [tool.pylint.design] max-args below, so the two linters agree.
+max-args = 6
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
