@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import logging
 import multiprocessing
+import platform
 import sys
 import threading
 from contextlib import contextmanager, suppress
@@ -19,6 +20,7 @@ from .bus import EventBus
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+    from multiprocessing.context import BaseContext
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,19 @@ def cli() -> None:
     """Main entry point."""
 
 
+def _mp_context() -> BaseContext | None:
+    """Return the multiprocessing context used to start workers.
+
+    Python 3.14 changed the Linux default from 'fork' to 'forkserver', which
+    requires receivers to be picklable and re-imports modules in each worker, so
+    'fork' is pinned explicitly. macOS keeps its default ('spawn') because
+    forking there is unsafe.
+    """
+    if platform.system() == "Darwin":
+        return None
+    return multiprocessing.get_context("fork")
+
+
 class Worker(cotyledon.Service):
     """Process handling an event receiver."""
 
@@ -114,10 +129,7 @@ def worker(app: str) -> None:
     num_workers = len(receivers)
     logger.info(f"Found {num_workers} receivers.")
 
-    # Pin the start method: Python 3.14 changed the Linux default from 'fork' to
-    # 'forkserver', which requires receivers to be picklable and re-imports modules
-    # in each worker. Explicitly use 'fork' to keep behaviour consistent.
-    manager = cotyledon.ServiceManager(mp_context=multiprocessing.get_context("fork"))
+    manager = cotyledon.ServiceManager(mp_context=_mp_context())
     with cwd_in_path():
         for receiver in receivers:
             manager.add(Worker, args=(receiver,))
