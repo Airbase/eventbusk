@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import multiprocessing
 import sys
 import threading
 from contextlib import contextmanager, suppress
@@ -113,7 +114,10 @@ def worker(app: str) -> None:
     num_workers = len(receivers)
     logger.info(f"Found {num_workers} receivers.")
 
-    manager = cotyledon.ServiceManager()
+    # Pin the start method: Python 3.14 changed the Linux default from 'fork' to
+    # 'forkserver', which requires receivers to be picklable and re-imports modules
+    # in each worker. Explicitly use 'fork' to keep behaviour consistent.
+    manager = cotyledon.ServiceManager(mp_context=multiprocessing.get_context("fork"))
     with cwd_in_path():
         for receiver in receivers:
             manager.add(Worker, args=(receiver,))
