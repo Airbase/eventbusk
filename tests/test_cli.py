@@ -16,8 +16,8 @@ def test_worker_uses_fork_start_method() -> None:
 
     with (
         mock.patch.object(cli, "find_app", return_value=bus),
-        mock.patch.object(cli.cotyledon, "ServiceManager") as manager_cls,
-        mock.patch.object(cli.EventBus, "to_fqn", return_value="r"),
+        mock.patch("cotyledon.ServiceManager") as manager_cls,
+        mock.patch("eventbusk.bus.EventBus.to_fqn", return_value="r"),
     ):
         result = CliRunner().invoke(cli.worker, ["--app", "mod:app"])
 
