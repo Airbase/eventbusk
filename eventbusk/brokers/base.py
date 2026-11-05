@@ -92,6 +92,7 @@ class BaseProducer(ABC):
         topic: str,
         value: bytes,
         *,
+        headers: list[tuple[str, bytes]] | None = None,
         flush: bool = True,
         on_delivery: DeliveryCallback = None,
         fail_silently: bool = False,
@@ -104,6 +105,9 @@ class BaseProducer(ABC):
             The name of the topic
         value:
             Serialized message to send.
+        headers:
+            Optional message headers, as a list of (key, value) tuples. Used to
+            carry out-of-band metadata such as trace context.
         on_delivery:
             Callback function on delivery of a message.
         flush:

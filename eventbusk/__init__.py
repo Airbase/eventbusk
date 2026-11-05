@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .bus import Event, EventBus
+from .bus import Event, EventBus, TracingConfig
 
-__all__ = ["Event", "EventBus"]
+__all__ = ["Event", "EventBus", "TracingConfig"]
