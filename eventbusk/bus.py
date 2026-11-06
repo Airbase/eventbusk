@@ -212,6 +212,7 @@ class EventBus:
         AlreadyRegistered
             If another receiver already claimed the same explicit `group` on the
             same topic.
+
         """
         event_fqn = self.to_fqn(event_type)
         if event_fqn not in self._event_to_topic:
