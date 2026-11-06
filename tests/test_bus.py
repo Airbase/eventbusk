@@ -9,7 +9,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
+
 from eventbusk import Event, EventBus
+from eventbusk.exceptions import AlreadyRegistered
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -271,3 +274,79 @@ def test_failing_on_error_handler_does_not_crash_receiver(
 
     failing_handler.assert_called_once()
     consumer.ack.assert_not_called()
+
+
+def test_receive_group_defaults_to_receiver_fqn(mocker: MockerFixture) -> None:
+    """Without an explicit group, the consumer group is the receiver's FQN."""
+    bus = EventBus(broker=BROKER)
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo)
+    def foo_processor(_event: Event) -> None:
+        pass
+
+    consumer, _ = _make_mock_consumer({"first": 1})
+    consumer_cls = mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    consumer_cls.assert_called_once_with(
+        broker=BROKER,
+        topic="first_topic",
+        group=EventBus.to_fqn(foo_processor),
+    )
+
+
+def test_receive_uses_explicit_group(mocker: MockerFixture) -> None:
+    """An explicit group is passed through to the consumer."""
+    bus = EventBus(broker=BROKER)
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo, group="my-stable-group")
+    def foo_processor(_event: Event) -> None:
+        pass
+
+    consumer, _ = _make_mock_consumer({"first": 1})
+    consumer_cls = mocker.patch("eventbusk.bus.Consumer", return_value=consumer)
+
+    foo_processor()  # pylint: disable=no-value-for-parameter
+
+    consumer_cls.assert_called_once_with(
+        broker=BROKER,
+        topic="first_topic",
+        group="my-stable-group",
+    )
+
+
+def test_receive_duplicate_explicit_group_on_same_topic_raises() -> None:
+    """Two receivers cannot claim the same explicit group on one topic."""
+    bus = EventBus(broker=BROKER)
+    bus.register_event("first_topic", Foo)
+
+    @bus.receive(event_type=Foo, group="shared")
+    def first(_event: Event) -> None:
+        pass
+
+    with pytest.raises(AlreadyRegistered):
+
+        @bus.receive(event_type=Foo, group="shared")
+        def second(_event: Event) -> None:
+            pass
+
+
+def test_receive_same_explicit_group_on_different_topics_allowed() -> None:
+    """The same group name may be reused across different topics."""
+    bus = EventBus(broker=BROKER)
+    bus.register_event("first_topic", Foo)
+    bus.register_event("second_topic", Bar)
+
+    @bus.receive(event_type=Foo, group="shared")
+    def foo_processor(_event: Event) -> None:
+        pass
+
+    @bus.receive(event_type=Bar, group="shared")
+    def bar_processor(_event: Event) -> None:
+        pass
+
+    assert foo_processor in bus.receivers
+    assert bar_processor in bus.receivers

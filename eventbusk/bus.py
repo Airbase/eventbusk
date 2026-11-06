@@ -107,6 +107,9 @@ class EventBus:
         self._topic_to_event: dict[str, str] = {}
         self._event_to_topic: dict[str, str] = {}
         self._receivers: set[ReceiverWorker] = set()
+        # (topic, group) pairs claimed through an explicit `group=` argument, used to
+        # catch two receivers accidentally sharing a consumer group on one topic.
+        self._explicit_groups: set[tuple[str, str]] = set()
 
     @staticmethod
     def to_fqn(event_type: EventType | Receiver) -> str:
@@ -180,16 +183,35 @@ class EventBus:
         """Returns a set of receivers(consumers) of events."""
         return self._receivers
 
-    # TODO: add group parameter?
     def receive(  # pylint: disable=too-complex,too-many-statements
         self,
         event_type: EventType,
         poll_timeout: int = 1,
+        group: str | None = None,
     ) -> ReceiverDecorator:
         """Decorator to convert a function into an receiver.
 
         An receiver is a simple function that consumes a specific event on the event
         bus.
+
+        Parameters
+        ----------
+        event_type : EventType
+            The event class this receiver consumes.
+        poll_timeout : int
+            Seconds to block while polling the broker for a message.
+        group : str, optional
+            Consumer group name. Defaults to the receiver's fully qualified name
+            (module + qualname), which changes if the function is moved or renamed.
+            Pass an explicit name to keep committed offsets stable across refactors.
+
+        Raises
+        ------
+        UnknownEvent
+            If `event_type` has not been registered to a topic.
+        AlreadyRegistered
+            If another receiver already claimed the same explicit `group` on the
+            same topic.
         """
         event_fqn = self.to_fqn(event_type)
         if event_fqn not in self._event_to_topic:
@@ -199,20 +221,30 @@ class EventBus:
             )
 
         def _outer(func: Receiver) -> ReceiverWorker:
-            # TODO: Ensure group name does not clash
-            group = self.to_fqn(func)
             receiver_fqn = self.to_fqn(func)
             topic = self._event_to_topic[event_fqn]
+            if group is None:
+                group_name = receiver_fqn
+            else:
+                if (topic, group) in self._explicit_groups:
+                    raise AlreadyRegistered(
+                        f"Consumer group '{group}' is already used by another "
+                        f"receiver on topic '{topic}'.",
+                    )
+                self._explicit_groups.add((topic, group))
+                group_name = group
             log_context = {
                 "event": event_fqn,
                 "receiver": receiver_fqn,
                 "topic": topic,
-                "group": group,
+                "group": group_name,
             }
 
             @wraps(func)
             def wrapper() -> None:  # pylint: disable=too-many-branches
-                with Consumer(broker=self.broker, topic=topic, group=group) as consumer:
+                with Consumer(
+                    broker=self.broker, topic=topic, group=group_name
+                ) as consumer:
                     # TODO: Max-number-of-tasks
                     while True:
                         try:
